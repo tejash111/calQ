@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id // Clerk user ID (e.g. user_...)
+  email     String?
+  firstName String?  @map("first_name")
+  lastName  String?  @map("last_name")
+  imageUrl  String?  @map("image_url")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  onboarding Onboarding?
+
+  @@map("users")
+}
+
+model Onboarding {
+  id             String   @id @default(uuid())
+  userId         String   @unique @map("user_id")
+  goal           String?
+  gender         String?
+  weight         String?
+  height         String?
+  birthDay       String?  @map("birth_day")
+  birthMonth     String?  @map("birth_month")
+  birthYear      String?  @map("birth_year")
+  desiredWeight  String?  @map("desired_weight")
+  activityLevel  String?  @map("activity_level")
+  pace           String?
+  connectFit     Boolean  @default(false) @map("connect_fit")
+  dailyCalories  Int?     @map("daily_calories")
+  proteinG       Int?     @map("protein_g")
+  carbsG         Int?     @map("carbs_g")
+  fatG           Int?     @map("fat_g")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("onboarding")
+}
