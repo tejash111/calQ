@@ -8,12 +8,19 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Dimensions,
+  Modal,
+  TouchableWithoutFeedback,
+  TouchableOpacity,
+  Animated,
 } from 'react-native';
 import { useAuth, useUser } from '@clerk/clerk-expo';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Image } from 'expo-image';
-import { LogOut, Plus, Flame, Home, BarChart2, User, Sparkles } from 'lucide-react-native';
+import { LogOut, Plus, Flame, Home, BarChart2, User, Sparkles, Utensils, Camera, Dumbbell, Barcode, X, Bookmark, Search, Scan } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
+import Svg, { Circle } from 'react-native-svg';
 import { useOnboardingProfile, type OnboardingProfile } from '../../../hooks/useOnboardingProfile';
+import { getTodayFoodLogs } from '../../../lib/api';
 
 const { width } = Dimensions.get('window');
 
@@ -47,11 +54,7 @@ function getMonthLabel(weekOffset: number) {
   return startOfWeek.toLocaleString('default', { month: 'long', year: 'numeric' });
 }
 
-// Today's logged foods — will be replaced with real DB data in future
-const MOCK_FOODS: Array<{ id: string; meal: string; name: string; kcal: number; time: string; emoji: string }> = [];
 
-// Calories taken today — will be tracked from food log in future
-const CALORIES_TAKEN_TODAY = 0;
 
 // ─── TAB BAR ─────────────────────────────────────────────────────────────────
 type TabKey = 'home' | 'progress' | 'profile' | 'ai';
@@ -59,41 +62,45 @@ type TabKey = 'home' | 'progress' | 'profile' | 'ai';
 interface FloatingTabBarProps {
   activeTab: TabKey;
   onTabChange: (tab: TabKey) => void;
+  onPlusPress: () => void;
 }
 
-function FloatingTabBar({ activeTab, onTabChange }: FloatingTabBarProps) {
+function FloatingTabBar({ activeTab, onTabChange, onPlusPress }: FloatingTabBarProps) {
   return (
     <View style={tabStyles.wrapper} pointerEvents="box-none">
-      <View style={tabStyles.bar}>
+      <BlurView intensity={70} tint="light" style={tabStyles.bar}>
         {/* Home */}
         <Pressable style={tabStyles.tab} onPress={() => onTabChange('home')}>
-          <Home size={22} color={activeTab === 'home' ? '#000' : '#9CA3AF'} strokeWidth={activeTab === 'home' ? 2.5 : 1.5} />
+          <Image source={require('../../../../assets/dash/home.svg')} style={{ width: 24, height: 24, opacity: activeTab === 'home' ? 1 : 0.4 }} tintColor={activeTab === 'home' ? '#000' : '#6B7280'} contentFit="contain" />
           <Text style={[tabStyles.tabLabel, activeTab === 'home' && tabStyles.tabLabelActive]}>Home</Text>
         </Pressable>
 
         {/* Progress */}
         <Pressable style={tabStyles.tab} onPress={() => onTabChange('progress')}>
-          <BarChart2 size={22} color={activeTab === 'progress' ? '#000' : '#9CA3AF'} strokeWidth={activeTab === 'progress' ? 2.5 : 1.5} />
+          <Image source={require('../../../../assets/dash/progress.svg')} style={{ width: 24, height: 24, opacity: activeTab === 'progress' ? 1 : 0.4 }} tintColor={activeTab === 'progress' ? '#000' : '#6B7280'} contentFit="contain" />
           <Text style={[tabStyles.tabLabel, activeTab === 'progress' && tabStyles.tabLabelActive]}>Progress</Text>
         </Pressable>
 
-        {/* Center Plus */}
-        <View style={tabStyles.plusWrap}>
-          <Pressable style={tabStyles.plusBtn}>
-            <Plus size={28} color="#000" strokeWidth={2.5} />
-          </Pressable>
-        </View>
+        {/* Center Plus Spacer */}
+        <View style={tabStyles.plusWrap} />
 
         {/* Profile */}
         <Pressable style={tabStyles.tab} onPress={() => onTabChange('profile')}>
-          <User size={22} color={activeTab === 'profile' ? '#000' : '#9CA3AF'} strokeWidth={activeTab === 'profile' ? 2.5 : 1.5} />
+          <Image source={require('../../../../assets/dash/profile.svg')} style={{ width: 24, height: 24, opacity: activeTab === 'profile' ? 1 : 0.4 }} tintColor={activeTab === 'profile' ? '#000' : '#6B7280'} contentFit="contain" />
           <Text style={[tabStyles.tabLabel, activeTab === 'profile' && tabStyles.tabLabelActive]}>Profile</Text>
         </Pressable>
 
         {/* AI */}
         <Pressable style={tabStyles.tab} onPress={() => onTabChange('ai')}>
-          <Sparkles size={22} color={activeTab === 'ai' ? '#000' : '#9CA3AF'} strokeWidth={activeTab === 'ai' ? 2.5 : 1.5} />
+          <Image source={require('../../../../assets/dash/describe.svg')} style={{ width: 24, height: 24, opacity: activeTab === 'ai' ? 1 : 0.4 }} tintColor={activeTab === 'ai' ? '#000' : '#6B7280'} contentFit="contain" />
           <Text style={[tabStyles.tabLabel, activeTab === 'ai' && tabStyles.tabLabelActive]}>AI</Text>
+        </Pressable>
+      </BlurView>
+
+      {/* Floating Plus Button (Outside BlurView to prevent clipping) */}
+      <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]} pointerEvents="box-none">
+        <Pressable style={tabStyles.plusBtn} onPress={onPlusPress}>
+          <Plus size={28} color="#000" strokeWidth={2.5} />
         </Pressable>
       </View>
     </View>
@@ -103,25 +110,24 @@ function FloatingTabBar({ activeTab, onTabChange }: FloatingTabBarProps) {
 const tabStyles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    bottom: 28,
+    bottom: 32,
     left: 24,
     right: 24,
     alignItems: 'center',
   },
   bar: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 28,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+    borderRadius: 30,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.9)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
     shadowRadius: 24,
-    elevation: 12,
     width: '100%',
   },
   tab: {
@@ -253,39 +259,65 @@ interface HomeTabProps {
   userImageUrl?: string | null;
   profile: OnboardingProfile | null;
   profileLoading: boolean;
+  foodLogs: any[];
+  logsLoading: boolean;
 }
 
-function getCircleProgressStyle(progress: number, color: string) {
-  const customStyle: any = {
-    borderColor: '#E5E7EB',
-  };
-  if (progress >= 0.25) {
-    customStyle.borderTopColor = color;
-  }
-  if (progress >= 0.5) {
-    customStyle.borderLeftColor = color;
-  }
-  if (progress >= 0.75) {
-    customStyle.borderRightColor = color;
-  }
-  if (progress >= 1.0) {
-    customStyle.borderBottomColor = color;
-  }
-  return customStyle;
+function CircularProgress({ progress, size, strokeWidth, color, children, style }: any) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  // Ensure progress is bounded between 0 and 1
+  const boundedProgress = Math.min(Math.max(progress, 0), 1);
+  const strokeDashoffset = circumference - boundedProgress * circumference;
+
+  return (
+    <View style={[{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }, style]}>
+      <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#E5E7EB"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+        />
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          fill="transparent"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </Svg>
+      {children}
+    </View>
+  );
 }
 
-function HomeTab({ userName, userImageUrl, profile, profileLoading }: HomeTabProps) {
+function HomeTab({ userName, userImageUrl, profile, profileLoading, foodLogs, logsLoading }: HomeTabProps) {
   const { signOut } = useAuth();
+  const router = useRouter();
 
   const calorieGoal = profile?.daily_calories ?? 2000;
-  const calorieTaken = CALORIES_TAKEN_TODAY;
+  
+  // Calculate totals from logs
+  const calorieTaken = foodLogs.reduce((sum, log) => sum + (log.calories || 0), 0);
+  const proteinTaken = foodLogs.reduce((sum, log) => sum + (log.protein || 0), 0);
+  const carbsTaken = foodLogs.reduce((sum, log) => sum + (log.carbs || 0), 0);
+  const fatTaken = foodLogs.reduce((sum, log) => sum + (log.fat || 0), 0);
+
   const calorieProgress = calorieGoal > 0 ? calorieTaken / calorieGoal : 0;
-  const remaining = calorieGoal - calorieTaken;
+  const remaining = Math.max(0, calorieGoal - calorieTaken);
 
   const macros = [
     {
       label: 'Protein',
-      taken: 0,
+      taken: Math.round(proteinTaken),
       goal: profile?.protein_g ?? 0,
       color: '#EF4444',
       bg: '#F0F0F0',
@@ -293,7 +325,7 @@ function HomeTab({ userName, userImageUrl, profile, profileLoading }: HomeTabPro
     },
     {
       label: 'Carbs',
-      taken: 0,
+      taken: Math.round(carbsTaken),
       goal: profile?.carbs_g ?? 0,
       color: '#F59E0B',
       bg: '#F0F0F0',
@@ -301,7 +333,7 @@ function HomeTab({ userName, userImageUrl, profile, profileLoading }: HomeTabPro
     },
     {
       label: 'Fat',
-      taken: 0,
+      taken: Math.round(fatTaken),
       goal: profile?.fat_g ?? 0,
       color: '#3B82F6',
       bg: '#F0F0F0',
@@ -388,13 +420,19 @@ function HomeTab({ userName, userImageUrl, profile, profileLoading }: HomeTabPro
                 </Text>
                 <Text style={styles.calorieRemain}>remaining today</Text>
               </View>
-              <View style={[styles.calorieProgressCircle, getCircleProgressStyle(calorieProgress, '#A3E635')]}>
+              <CircularProgress 
+                progress={calorieProgress} 
+                size={90} 
+                strokeWidth={5} 
+                color="#A3E635"
+                style={{ backgroundColor: '#fff', borderRadius: 45 }}
+              >
                 <Image 
                   source={require('../../../../assets/onboarding/burnfat.svg')} 
                   style={{ width: 28, height: 28 }} 
                   contentFit="contain"
                 />
-              </View>
+              </CircularProgress>
             </View>
           </View>
 
@@ -402,13 +440,19 @@ function HomeTab({ userName, userImageUrl, profile, profileLoading }: HomeTabPro
           <View style={styles.macroRow}>
             {macros.map((m) => (
               <View key={m.label} style={[styles.macroCard, { backgroundColor: m.bg }]}>
-                <View style={[styles.macroProgressCircle, getCircleProgressStyle(m.goal > 0 ? m.taken / m.goal : 0, m.color)]}>
+                <CircularProgress 
+                  progress={m.goal > 0 ? m.taken / m.goal : 0} 
+                  size={60} 
+                  strokeWidth={4} 
+                  color={m.color}
+                  style={{ backgroundColor: '#fff', borderRadius: 30 }}
+                >
                   <Image 
                     source={m.source} 
                     style={{ width: 22, height: 22 }} 
                     contentFit="contain"
                   />
-                </View>
+                </CircularProgress>
                 <Text style={styles.macroLabel}>{m.label}</Text>
                 <Text style={[styles.macroVal, { color: m.color }]}>{m.taken}g</Text>
                 <Text style={styles.macroGoal}>/ {m.goal}g</Text>
@@ -420,38 +464,45 @@ function HomeTab({ userName, userImageUrl, profile, profileLoading }: HomeTabPro
 
       {/* Food Log */}
       <Text style={styles.sectionTitleFoodLog}>Today's Food Log</Text>
-      {MEAL_CATEGORIES.map((meal) => {
-        const foods = MOCK_FOODS.filter((f) => f.meal === meal);
-        const totalKcal = foods.reduce((s, f) => s + f.kcal, 0);
-        return (
-          <View key={meal} style={styles.mealGroup}>
-            <View style={styles.mealGroupHeader}>
-              <View style={styles.mealIconWrap}>
-                <Image 
-                  source={MEAL_ICONS[meal]} 
-                  style={{ width: 18, height: 18 }} 
-                  contentFit="contain" 
-                />
-              </View>
-              <Text style={styles.mealGroupTitle}>{meal}</Text>
-              <Text style={styles.mealGroupKcal}>{totalKcal} kcal</Text>
-              <Pressable style={styles.mealAddBtn}>
-                <Plus size={16} color="#6B7280" />
-              </Pressable>
-            </View>
-            {foods.map((food) => (
-              <View key={food.id} style={styles.foodItem}>
-                <Text style={styles.foodEmoji}>{food.emoji}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.foodName}>{food.name}</Text>
-                  <Text style={styles.foodTime}>{food.time}</Text>
+      
+      {logsLoading ? (
+        <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+          <ActivityIndicator size="small" color="#2b2543" />
+        </View>
+      ) : (
+        MEAL_CATEGORIES.map((meal) => {
+          const foods = foodLogs.filter((f) => f.mealType === meal);
+          const totalKcal = foods.reduce((s, f) => s + (f.calories || 0), 0);
+          return (
+            <View key={meal} style={styles.mealGroup}>
+              <View style={styles.mealGroupHeader}>
+                <View style={styles.mealIconWrap}>
+                  <Image 
+                    source={MEAL_ICONS[meal]} 
+                    style={{ width: 18, height: 18 }} 
+                    contentFit="contain" 
+                  />
                 </View>
-                <Text style={styles.foodKcal}>{food.kcal} kcal</Text>
+                <Text style={styles.mealGroupTitle}>{meal}</Text>
+                <Text style={styles.mealGroupKcal}>{totalKcal} kcal</Text>
+                <Pressable style={styles.mealAddBtn} onPress={() => router.push('/food-database')}>
+                  <Plus size={16} color="#6B7280" />
+                </Pressable>
               </View>
-            ))}
-          </View>
-        );
-      })}
+              {foods.map((food) => (
+                <View key={food.id} style={styles.foodItem}>
+                  <Text style={styles.foodEmoji}>🍽️</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.foodName} numberOfLines={1}>{food.name}</Text>
+                    <Text style={styles.foodTime}>{new Date(food.consumedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+                  </View>
+                  <Text style={styles.foodKcal}>{food.calories} kcal</Text>
+                </View>
+              ))}
+            </View>
+          );
+        })
+      )}
     </ScrollView>
   );
 }
@@ -486,12 +537,178 @@ function AITab() {
   );
 }
 
+// ─── QUICK ACTION MODAL ──────────────────────────────────────────────────────
+interface ActionModalProps {
+  visible: boolean;
+  onClose: () => void;
+}
+
+function ActionModal({ visible, onClose }: ActionModalProps) {
+  const router = useRouter();
+  const scaleAnim = React.useRef(new Animated.Value(0.9)).current;
+  const opacityAnim = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 8,
+          tension: 100,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      opacityAnim.setValue(0);
+      scaleAnim.setValue(0.9);
+    }
+  }, [visible]);
+
+  const handleAction = (action: string) => {
+    onClose();
+    if (action === 'food_database') {
+      router.push('/(app)/food-database');
+    } else if (action === 'scan_food') {
+      router.push('/(app)/scan-food');
+    } else {
+      console.log(`Action chosen: ${action}`);
+    }
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent={true}
+    >
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={[modalStyles.overlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+          {/* Backdrop Blur */}
+          <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFill} />
+
+          <TouchableWithoutFeedback>
+            <Animated.View style={[modalStyles.optionsGrid, { opacity: opacityAnim, transform: [{ scale: scaleAnim }] }]}>
+              {/* Log exercise */}
+              <TouchableOpacity 
+                activeOpacity={0.7}
+                style={modalStyles.optionCard}
+                onPress={() => handleAction('log_exercise')}
+              >
+                <Image source={require('../../../../assets/dash/dumbell.svg')} style={{ width: 32, height: 32 }} contentFit="contain" />
+                <Text style={modalStyles.optionLabel}>Log exercise</Text>
+              </TouchableOpacity>
+
+              {/* Describe to AI */}
+              <TouchableOpacity 
+                activeOpacity={0.7}
+                style={modalStyles.optionCard}
+                onPress={() => handleAction('saved_foods')}
+              >
+                <Image source={require('../../../../assets/dash/describe.svg')} style={{ width: 32, height: 32 }} contentFit="contain" />
+                <Text style={modalStyles.optionLabel}>Describe to AI</Text>
+              </TouchableOpacity>
+
+              {/* Food Database */}
+              <TouchableOpacity 
+                activeOpacity={0.7}
+                style={modalStyles.optionCard}
+                onPress={() => handleAction('food_database')}
+              >
+                <Image source={require('../../../../assets/dash/fooddb.svg')} style={{ width: 32, height: 32 }} contentFit="contain" />
+                <Text style={modalStyles.optionLabel}>Food Database</Text>
+              </TouchableOpacity>
+
+              {/* Scan food */}
+              <TouchableOpacity 
+                activeOpacity={0.7}
+                style={modalStyles.optionCard}
+                onPress={() => handleAction('scan_food')}
+              >
+                <Image source={require('../../../../assets/dash/scan.svg')} style={{ width: 32, height: 32 }} contentFit="contain" />
+                <Text style={modalStyles.optionLabel}>Scan food</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+}
+
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 110,
+  },
+  optionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 12,
+    width: '100%',
+    backgroundColor: 'transparent',
+  },
+  optionCard: {
+    width: (width - 52) / 2, // 2 items per row with gap 12 and padding 20
+    height: 110,
+    backgroundColor: '#F0F0F0', // Matched exactly to the calorie card bg
+    borderRadius: 24,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  optionLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#000',
+    textAlign: 'center',
+  },
+});
+
 // ─── MAIN DASHBOARD ──────────────────────────────────────────────────────────
 export default function DashboardScreen() {
   const { user } = useUser();
+  const { getToken } = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>('home');
+  const [isActionModalVisible, setIsActionModalVisible] = useState(false);
   const { profile, loading: profileLoading } = useOnboardingProfile();
   const router = useRouter();
+
+  const [foodLogs, setFoodLogs] = useState<any[]>([]);
+  const [logsLoading, setLogsLoading] = useState(true);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      let isActive = true;
+      const fetchLogs = async () => {
+        try {
+          const token = await getToken();
+          const data = await getTodayFoodLogs(token);
+          if (isActive && data.logs) {
+            setFoodLogs(data.logs);
+          }
+        } catch (error) {
+          console.error("Failed to fetch food logs:", error);
+        } finally {
+          if (isActive) setLogsLoading(false);
+        }
+      };
+      fetchLogs();
+      return () => { isActive = false; };
+    }, [])
+  );
 
   React.useEffect(() => {
     // If finished loading and still no profile, force user to onboarding
@@ -511,13 +728,23 @@ export default function DashboardScreen() {
             userImageUrl={user?.imageUrl}
             profile={profile}
             profileLoading={profileLoading}
+            foodLogs={foodLogs}
+            logsLoading={logsLoading}
           />
         )}
         {activeTab === 'progress' && <ProgressTab />}
         {activeTab === 'profile' && <ProfileTab />}
         {activeTab === 'ai' && <AITab />}
       </View>
-      <FloatingTabBar activeTab={activeTab} onTabChange={setActiveTab} />
+      <FloatingTabBar 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab} 
+        onPlusPress={() => setIsActionModalVisible(true)}
+      />
+      <ActionModal 
+        visible={isActionModalVisible} 
+        onClose={() => setIsActionModalVisible(false)} 
+      />
     </SafeAreaView>
   );
 }

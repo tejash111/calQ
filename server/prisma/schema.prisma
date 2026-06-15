@@ -16,6 +16,7 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
 
   onboarding Onboarding?
+  foodLogs   FoodLog[]
 
   @@map("users")
 }
@@ -44,4 +45,36 @@ model Onboarding {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("onboarding")
+}
+
+model FoodLog {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  foodId      String   @map("food_id")
+
+  name        String
+  imageUrl    String?  @map("image_url")
+
+  calories    Int
+  protein     Float?
+  carbs       Float?
+  fat         Float?
+
+  fiber       Float?
+  sugar       Float?
+
+  sodium      Float?
+  potassium   Float?
+  calcium     Float?
+  iron        Float?
+  vitaminC    Float?   @map("vitamin_c")
+  vitaminD    Float?   @map("vitamin_d")
+
+  serving     String?
+  mealType    String   @map("meal_type")
+  consumedAt  DateTime @default(now()) @map("consumed_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("food_logs")
 }

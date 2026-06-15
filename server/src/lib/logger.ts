@@ -1,0 +1,22 @@
+import winston from "winston";
+
+const { combine, timestamp, printf, colorize, align } = winston.format;
+
+const logFormat = printf((info) => {
+  return `[${info.timestamp}] ${info.level}: ${info.message}`;
+});
+
+export const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || "info",
+  format: combine(
+    colorize({ all: true }),
+    timestamp({
+      format: "YYYY-MM-DD HH:mm:ss.SSS",
+    }),
+    align(),
+    logFormat
+  ),
+  transports: [
+    new winston.transports.Console()
+  ],
+});

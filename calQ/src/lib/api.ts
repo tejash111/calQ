@@ -49,12 +49,14 @@ export async function apiClient(
 
   if (!response.ok) {
     let errorText = await response.text().catch(() => "Unknown error");
+    let errorMsg = `API error: ${response.status}`;
     try {
       const errorJson = JSON.parse(errorText);
-      throw new Error(errorJson.error || `API error: ${response.status}`);
+      errorMsg = errorJson.error || errorMsg;
     } catch {
-      throw new Error(`API error ${response.status}: ${errorText.substring(0, 100)}`);
+      errorMsg = `API error ${response.status}: ${errorText.substring(0, 100)}`;
     }
+    throw new Error(errorMsg);
   }
 
   return response.json();
@@ -98,5 +100,42 @@ export async function generateNutritionPlan(
   return apiClient("/api/ai/nutrition-plan", token, {
     method: "POST",
     body: JSON.stringify(profile),
+  });
+}
+
+export async function searchFood(
+  token: string | null,
+  query: string
+) {
+  // Use GET method and pass query via URL
+  return apiClient(`/api/food/search?query=${encodeURIComponent(query)}`, token);
+}
+
+export async function getFoodDetail(
+  token: string | null,
+  foodId: string
+) {
+  return apiClient(`/api/food/${foodId}`, token);
+}
+
+export async function logFood(token: string | null, foodData: any) {
+  return apiClient("/api/food/log", token, {
+    method: "POST",
+    body: JSON.stringify(foodData),
+  });
+}
+
+export async function getTodayFoodLogs(token: string | null) {
+  return apiClient("/api/food/log/today", token);
+}
+
+export async function scanFood(
+  token: string | null,
+  imageBase64: string,
+  hint?: string
+) {
+  return apiClient("/api/food/scan", token, {
+    method: "POST",
+    body: JSON.stringify({ imageBase64, hint }),
   });
 }

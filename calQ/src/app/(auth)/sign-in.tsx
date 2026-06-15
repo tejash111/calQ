@@ -8,6 +8,8 @@ import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import * as Linking from 'expo-linking';
+
 WebBrowser.maybeCompleteAuthSession();
 
 export default function SignInScreen() {
@@ -18,7 +20,9 @@ export default function SignInScreen() {
 
   const onPress = React.useCallback(async () => {
     try {
-      const { createdSessionId, setActive } = await startOAuthFlow();
+      const { createdSessionId, setActive } = await startOAuthFlow({
+        redirectUrl: Linking.createURL('/oauth-native-callback'),
+      });
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId });
         
@@ -69,7 +73,8 @@ export default function SignInScreen() {
         <TouchableOpacity 
           onPress={onPress} 
           activeOpacity={0.8}
-          className="w-full bg-[#F3F4F6] flex-row items-center justify-center py-5 rounded-2xl border border-gray-200 shadow-sm shadow-black/5"
+          className="w-full bg-[#F3F4F6] flex-row items-center justify-center rounded-2xl border border-gray-200 shadow-sm shadow-black/5"
+          style={{ paddingVertical: 14 }}
         >
           <Image 
             source={require('../../../assets/google.svg')} 

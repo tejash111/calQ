@@ -7,6 +7,8 @@ import { useWarmUpBrowser } from '../../hooks/useWarmUpBrowser';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import * as Linking from 'expo-linking';
+
 WebBrowser.maybeCompleteAuthSession();
 
 export default function SignUpScreen() {
@@ -17,7 +19,9 @@ export default function SignUpScreen() {
 
   const onPress = React.useCallback(async () => {
     try {
-      const { createdSessionId, setActive } = await startOAuthFlow();
+      const { createdSessionId, setActive } = await startOAuthFlow({
+        redirectUrl: Linking.createURL('/oauth-native-callback'),
+      });
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId });
         
@@ -60,14 +64,15 @@ export default function SignUpScreen() {
         <TouchableOpacity 
           onPress={onPress} 
           activeOpacity={0.8}
-          className="w-full bg-[#F3F4F6] flex-row items-center justify-center py-5 rounded-2xl border border-gray-200 shadow-sm shadow-black/5"
+          className="w-full bg-[#d2cce3] flex-row items-center justify-center rounded-2xl border border-gray-200 shadow-sm shadow-black/5"
+          style={{ padding: 16 }}
         >
           <Image 
             source={require('../../../assets/google.svg')} 
             style={{ width: 24, height: 24, marginRight: 12 }} 
             contentFit="contain" 
           />
-          <Text className="text-black font-semibold text-lg">Continue with Google</Text>
+          <Text className="text-black  font-semibold text-lg">Continue with Google</Text>
         </TouchableOpacity>
 
         <View className="mt-8 items-center">

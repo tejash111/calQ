@@ -11,19 +11,23 @@
     "db:studio": "bunx prisma studio"
   },
   "dependencies": {
-    "express": "^5.1.0",
     "@clerk/express": "^1.5.0",
-    "@prisma/client": "^6.9.0",
-    "@langchain/google-genai": "^2.1.31",
-    "langchain": "^1.4.4",
     "@langchain/core": "^1.1.48",
+    "@langchain/google-genai": "^2.1.31",
+    "@prisma/client": "^6.9.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.5.0"
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "langchain": "^1.4.4",
+    "morgan": "^1.11.0",
+    "oauth-1.0a": "^2.2.6",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/express": "^5.0.3",
     "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/morgan": "^1.9.10",
     "prisma": "^6.9.0"
   },
   "peerDependencies": {
