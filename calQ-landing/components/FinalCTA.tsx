@@ -76,7 +76,7 @@ export default function FinalCTA() {
 
       {/* Footer */}
       <div className="w-full mt-24 md:mt-32 overflow-hidden flex justify-center items-end pointer-events-none select-none">
-        <h1 className="text-[25vw] md:text-[28vw] font-black text-[#F8F9FA] leading-none tracking-tighter text-center mb-[-4vw] md:mb-[-5vw]">
+        <h1 className="text-[40vw] md:text-[28vw] font-black text-[#F8F9FA] leading-none tracking-tighter text-center mb-[-6vw] md:mb-[-5vw]">
           calQ
         </h1>
       </div>

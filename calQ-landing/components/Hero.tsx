@@ -32,7 +32,7 @@ export default function Hero() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.5 }}
-        className="text-base md:text-lg text-gray-500 max-w-md mb-8 leading-relaxed"
+        className="text-lg md:text-xl text-gray-500 max-w-md mb-8 leading-relaxed font-medium"
       >
         Everything you need to track calories,
         protein, workouts and your progress

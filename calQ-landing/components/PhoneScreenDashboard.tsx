@@ -2,6 +2,7 @@
 
 import React from "react";
 import { LogOut, Plus } from "lucide-react";
+import MockTabBar from "./MockTabBar";
 
 // Reusable Circular Progress Ring for Calories and Macros
 function CircularProgress({
@@ -184,34 +185,34 @@ export default function PhoneScreenDashboard({ loggedFood }: { loggedFood?: any 
         <div className="bg-[#F0F0F0] rounded-[20px] p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[36px] font-extrabold text-black tracking-tight leading-none">
+              <p className="text-[32px] font-extrabold text-black tracking-tight leading-none">
                 {calories.remaining}
-                <span className="text-[16px] font-medium text-gray-500 ml-1">kcal</span>
+                <span className="text-[14px] font-medium text-gray-500 ml-1">kcal</span>
               </p>
-              <p className="text-[13px] text-gray-500 font-semibold mt-2.5">remaining today</p>
+              <p className="text-[12px] text-gray-500 font-semibold mt-2.5">remaining today</p>
             </div>
-            <CircularProgress progress={calories.progress} size={90} strokeWidth={5} color="#A3E635">
-              <div className="w-[80px] h-[80px] rounded-full bg-white flex items-center justify-center">
-                <img src="/assets/onboarding/burnfat.svg" className="w-[28px] h-[28px]" alt="Burn Fat" />
+            <CircularProgress progress={calories.progress} size={70} strokeWidth={4} color="#A3E635">
+              <div className="w-[60px] h-[60px] rounded-full bg-white flex items-center justify-center">
+                <img src="/assets/onboarding/burnfat.svg" className="w-[24px] h-[24px]" alt="Burn Fat" />
               </div>
             </CircularProgress>
           </div>
         </div>
 
         {/* Macro Cards Row */}
-        <div className="flex gap-2.5">
+        <div className="flex gap-2">
           {macros.map((m) => (
-            <div key={m.label} className="flex-1 bg-[#F0F0F0] rounded-[18px] p-3 flex flex-col items-center gap-1">
-              <CircularProgress progress={m.progress} size={60} strokeWidth={4} color={m.color}>
-                <div className="w-[52px] h-[52px] rounded-full bg-white flex items-center justify-center">
-                  <img src={m.iconPath} className="w-[22px] h-[22px] object-contain" alt={m.label} />
+            <div key={m.label} className="flex-1 bg-[#F0F0F0] rounded-[16px] p-2 flex flex-col items-center gap-1">
+              <CircularProgress progress={m.progress} size={48} strokeWidth={3.5} color={m.color}>
+                <div className="w-[40px] h-[40px] rounded-full bg-white flex items-center justify-center">
+                  <img src={m.iconPath} className="w-[18px] h-[18px] object-contain" alt={m.label} />
                 </div>
               </CircularProgress>
-              <span className="text-[12px] text-gray-500 font-bold mt-2">{m.label}</span>
-              <span className="text-[16px] font-extrabold mt-0.5" style={{ color: m.color }}>
+              <span className="text-[11px] text-gray-500 font-bold mt-1.5">{m.label}</span>
+              <span className="text-[14px] font-extrabold mt-0.5" style={{ color: m.color }}>
                 {m.taken}g
               </span>
-              <span className="text-[11px] text-gray-400 font-semibold">/ {m.goal}g</span>
+              <span className="text-[10px] text-gray-400 font-semibold">/ {m.goal}g</span>
             </div>
           ))}
         </div>
@@ -254,46 +255,7 @@ export default function PhoneScreenDashboard({ loggedFood }: { loggedFood?: any 
       </div>
 
       {/* ── FLOATING TAB BAR MOCK ─────────────────────────────────────────── */}
-      <div className="absolute bottom-6 left-6 right-6 z-30 flex justify-center pointer-events-auto">
-        <div className="w-full flex items-center bg-white/75 backdrop-blur-md rounded-[30px] px-3 py-2 border border-white/90 shadow-2xl relative">
-          
-          {/* Tabs */}
-          {/* Home Tab */}
-          <button className="flex-1 flex flex-col items-center justify-center gap-0.5 py-0.5">
-            <img src="/assets/dash/home.svg" className="w-[24px] h-[24px] opacity-100" alt="Home" />
-            <span className="text-[11px] text-black font-extrabold">Home</span>
-          </button>
-
-          {/* Progress Tab */}
-          <button className="flex-1 flex flex-col items-center justify-center gap-0.5 py-0.5">
-            <img src="/assets/dash/progress.svg" className="w-[24px] h-[24px] opacity-40" alt="Progress" />
-            <span className="text-[11px] text-gray-400 font-semibold">Progress</span>
-          </button>
-
-          {/* Plus button spacing spacer */}
-          <div className="w-[60px]" />
-
-          {/* Profile Tab */}
-          <button className="flex-1 flex flex-col items-center justify-center gap-0.5 py-0.5">
-            <img src="/assets/dash/profile.svg" className="w-[24px] h-[24px] opacity-40" alt="Profile" />
-            <span className="text-[11px] text-gray-400 font-semibold">Profile</span>
-          </button>
-
-          {/* AI Tab */}
-          <button className="flex-1 flex flex-col items-center justify-center gap-0.5 py-0.5">
-            <img src="/assets/dash/describe.svg" className="w-[24px] h-[24px] opacity-40" alt="AI" />
-            <span className="text-[11px] text-gray-400 font-semibold">AI</span>
-          </button>
-
-          {/* Floating Plus Action Button */}
-          <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-[calc(50%+16px)]">
-            <button className="w-[52px] h-[52px] rounded-full bg-[#A3E635] flex items-center justify-center shadow-lg shadow-[#A3E635]/40 active:scale-95 transition-all">
-              <Plus size={28} className="text-black stroke-[3.5]" />
-            </button>
-          </div>
-
-        </div>
-      </div>
+      <MockTabBar activeTab="home" />
 
       {/* Styles inline logic for hiding scrollbar */}
       <style jsx global>{`

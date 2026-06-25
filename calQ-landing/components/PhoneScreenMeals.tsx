@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import MockTabBar from "./MockTabBar";
 import { 
   ArrowLeft, Plus, ArrowUp, X
 } from "lucide-react";
@@ -313,46 +314,9 @@ export default function PhoneScreenMeals() {
               </div>
             </div>
 
-            {/* Active Tab Bar */}
-            <div className="absolute bottom-6 left-6 right-6 z-30 flex justify-center pointer-events-auto">
-              <div className="w-full flex items-center bg-white/75 backdrop-blur-md rounded-[30px] px-3 py-2 border border-white/90 shadow-2xl relative">
-                
-                {/* Home Tab */}
-                <button className="flex-1 flex flex-col items-center justify-center gap-0.5 py-0.5">
-                  <img src="/assets/dash/home.svg" className="w-[24px] h-[24px] opacity-40" alt="Home" />
-                  <span className="text-[11px] text-gray-400 font-semibold">Home</span>
-                </button>
+                        {/* ── FLOATING TAB BAR MOCK ─────────────────────────────────────────── */}
+            <MockTabBar activeTab="ai" />
 
-                {/* Progress Tab */}
-                <button className="flex-1 flex flex-col items-center justify-center gap-0.5 py-0.5">
-                  <img src="/assets/dash/progress.svg" className="w-[24px] h-[24px] opacity-40" alt="Progress" />
-                  <span className="text-[11px] text-gray-400 font-semibold">Progress</span>
-                </button>
-
-                {/* Plus button spacing spacer */}
-                <div className="w-[60px]" />
-
-                {/* Profile Tab */}
-                <button className="flex-1 flex flex-col items-center justify-center gap-0.5 py-0.5">
-                  <img src="/assets/dash/profile.svg" className="w-[24px] h-[24px] opacity-40" alt="Profile" />
-                  <span className="text-[11px] text-gray-400 font-semibold">Profile</span>
-                </button>
-
-                {/* AI Tab (ACTIVE) */}
-                <button className="flex-1 flex flex-col items-center justify-center gap-0.5 py-0.5">
-                  <img src="/assets/dash/describe.svg" className="w-[24px] h-[24px] opacity-100" alt="AI" />
-                  <span className="text-[11px] text-black font-extrabold">AI</span>
-                </button>
-
-                {/* Floating Plus Action Button */}
-                <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-[calc(50%+16px)]">
-                  <button className="w-[52px] h-[52px] rounded-full bg-[#A3E635] flex items-center justify-center shadow-lg shadow-[#A3E635]/40 active:scale-95 transition-all">
-                    <Plus size={28} className="text-black stroke-[3.5]" />
-                  </button>
-                </div>
-
-              </div>
-            </div>
 
           </motion.div>
         )}

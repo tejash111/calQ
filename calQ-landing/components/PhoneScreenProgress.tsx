@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import MockTabBar from "./MockTabBar";
 import PhoneScreenDashboard from "./PhoneScreenDashboard";
 import { Plus } from "lucide-react";
 
@@ -22,19 +23,19 @@ export default function PhoneScreenProgress({ staticMode = false }: { staticMode
   const showProgress = step === 1;
 
   const streakData = [
-    { day: 'S', active: true },
-    { day: 'M', active: true },
-    { day: 'T', active: true },
-    { day: 'W', active: true },
-    { day: 'T', active: false },
-    { day: 'F', active: false },
     { day: 'S', active: false },
+    { day: 'M', active: false },
+    { day: 'T', active: false },
+    { day: 'W', active: true },
+    { day: 'T', active: true },
+    { day: 'F', active: true },
+    { day: 'S', active: true },
   ];
 
-  const caloriesData = [1850, 2100, 1950, 2050, 0, 0, 0];
+  const caloriesData = [0, 0, 0, 1850, 2100, 1950, 2050];
   const maxCal = Math.max(...caloriesData, 2500);
 
-  const proteinData = [140, 160, 150, 145, 0, 0, 0];
+  const proteinData = [0, 0, 0, 140, 160, 150, 145];
   const maxPro = Math.max(...proteinData, 200);
 
   return (
@@ -118,11 +119,11 @@ export default function PhoneScreenProgress({ staticMode = false }: { staticMode
                 
                 <div className="h-[160px] flex items-end justify-between px-1">
                   {caloriesData.map((val, i) => {
-                    const heightPercent = val === 0 ? 5 : (val / maxCal) * 100;
+                    const heightPercent = val === 0 ? 0 : (val / maxCal) * 100;
                     return (
                       <div key={i} className="flex flex-col items-center w-[12%] h-full justify-end">
                         <span className="text-[10px] font-bold text-[#6B7280] mb-1">{val > 0 ? val : ''}</span>
-                        <div className="w-full bg-[#A3E635] rounded-[4px] min-h-[4px]" style={{ height: `${heightPercent}%` }}></div>
+                        {val > 0 && <div className="w-[30%] mx-auto bg-[#A3E635] rounded-t-[4px]" style={{ height: `${heightPercent}%` }}></div>}
                         <span className="text-[12px] font-[600] text-[#6B7280] mt-2">{streakData[i].day}</span>
                       </div>
                     );
@@ -142,11 +143,11 @@ export default function PhoneScreenProgress({ staticMode = false }: { staticMode
                   </div>
                   <div className="h-[120px] flex items-end justify-between px-1">
                     {proteinData.map((val, i) => {
-                      const heightPercent = val === 0 ? 5 : (val / maxPro) * 100;
+                      const heightPercent = val === 0 ? 0 : (val / maxPro) * 100;
                       return (
                         <div key={i} className="flex flex-col items-center w-[12%] h-full justify-end">
                           <span className="text-[10px] font-bold text-[#6B7280] mb-1">{val > 0 ? val : ''}</span>
-                          <div className="w-full bg-[#EF4444] rounded-[4px] min-h-[4px]" style={{ height: `${heightPercent}%` }}></div>
+                          {val > 0 && <div className="w-[30%] mx-auto bg-[#EF4444] rounded-t-[4px]" style={{ height: `${heightPercent}%` }}></div>}
                           <span className="text-[12px] font-[600] text-[#6B7280] mt-2">{streakData[i].day}</span>
                         </div>
                       );
@@ -161,58 +162,24 @@ export default function PhoneScreenProgress({ staticMode = false }: { staticMode
                     <span className="text-[16px] font-[700] text-[#111]">Carbs (g)</span>
                   </div>
                   <div className="h-[120px] flex items-end justify-between px-1">
-                    {proteinData.map((val, i) => (
-                      <div key={i} className="flex flex-col items-center w-[12%] h-full justify-end">
-                        <div className="w-full bg-[#F59E0B] rounded-[4px] min-h-[4px]" style={{ height: `${(val / maxPro) * 100 || 5}%` }}></div>
-                        <span className="text-[12px] font-[600] text-[#6B7280] mt-2">{streakData[i].day}</span>
-                      </div>
-                    ))}
+                    {proteinData.map((val, i) => {
+                      const heightPercent = val === 0 ? 0 : (val / maxPro) * 100;
+                      return (
+                        <div key={i} className="flex flex-col items-center w-[12%] h-full justify-end">
+                          <span className="text-[10px] font-bold text-[#6B7280] mb-1">{val > 0 ? val : ''}</span>
+                          {val > 0 && <div className="w-[30%] mx-auto bg-[#F59E0B] rounded-t-[4px]" style={{ height: `${heightPercent}%` }}></div>}
+                          <span className="text-[12px] font-[600] text-[#6B7280] mt-2">{streakData[i].day}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
 
             </div>
 
-            {/* Active Tab Bar (Progress Tab Active) */}
-            <div className="absolute bottom-6 left-6 right-6 z-30 flex justify-center pointer-events-auto">
-              <div className="w-full flex items-center bg-white/75 backdrop-blur-md rounded-[30px] px-3 py-2 border border-white/90 shadow-2xl relative">
-                
-                {/* Home Tab */}
-                <button className="flex-1 flex flex-col items-center justify-center gap-0.5 py-0.5">
-                  <img src="/assets/dash/home.svg" className="w-[24px] h-[24px] opacity-40" alt="Home" />
-                  <span className="text-[11px] text-gray-400 font-semibold">Home</span>
-                </button>
-
-                {/* Progress Tab (ACTIVE) */}
-                <button className="flex-1 flex flex-col items-center justify-center gap-0.5 py-0.5">
-                  <img src="/assets/dash/progress.svg" className="w-[24px] h-[24px] opacity-100" alt="Progress" />
-                  <span className="text-[11px] text-black font-extrabold">Progress</span>
-                </button>
-
-                {/* Plus button spacing spacer */}
-                <div className="w-[60px]" />
-
-                {/* Profile Tab */}
-                <button className="flex-1 flex flex-col items-center justify-center gap-0.5 py-0.5">
-                  <img src="/assets/dash/profile.svg" className="w-[24px] h-[24px] opacity-40" alt="Profile" />
-                  <span className="text-[11px] text-gray-400 font-semibold">Profile</span>
-                </button>
-
-                {/* AI Tab */}
-                <button className="flex-1 flex flex-col items-center justify-center gap-0.5 py-0.5">
-                  <img src="/assets/dash/describe.svg" className="w-[24px] h-[24px] opacity-40" alt="AI" />
-                  <span className="text-[11px] text-gray-400 font-semibold">AI</span>
-                </button>
-
-                {/* Floating Plus Action Button */}
-                <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-[calc(50%+16px)]">
-                  <button className="w-[52px] h-[52px] rounded-full bg-[#A3E635] flex items-center justify-center shadow-lg shadow-[#A3E635]/40 active:scale-95 transition-all">
-                    <Plus size={28} className="text-black stroke-[3.5]" />
-                  </button>
-                </div>
-
-              </div>
-            </div>
+            {/* ── FLOATING TAB BAR MOCK ─────────────────────────────────────────── */}
+            <MockTabBar activeTab="progress" />
 
           </motion.div>
         )}

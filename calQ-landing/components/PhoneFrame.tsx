@@ -50,7 +50,17 @@ export default function PhoneFrame({ activeScreen, children, className = "" }: P
             transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
             className="absolute inset-0"
           >
-            {children[activeScreen]}
+            <div 
+              style={{ 
+                width: "117.647%", 
+                height: "117.647%", 
+                transform: "scale(0.85)", 
+                transformOrigin: "top left" 
+              }} 
+              className="absolute"
+            >
+              {children[activeScreen]}
+            </div>
           </motion.div>
         </AnimatePresence>
       </div>
