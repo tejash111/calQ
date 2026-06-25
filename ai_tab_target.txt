@@ -1,0 +1,8 @@
+---- STEP 62 ----
+TARGET CONTENT:
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom : 0}
+    >
+---- STEP 331 ----

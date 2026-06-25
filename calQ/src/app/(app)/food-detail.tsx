@@ -420,21 +420,7 @@ const styles = StyleSheet.create({
     color: '#111',
     fontWeight: '700',
   },
-  quantityStepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.04)',
-    borderRadius: 100,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-  },
-  stepperBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+
   quantityInput: {
     fontSize: 16,
     fontWeight: '700',

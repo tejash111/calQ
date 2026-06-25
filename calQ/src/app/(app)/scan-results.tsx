@@ -446,7 +446,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scanOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   floatingPillContainer: {
@@ -540,6 +544,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 6,
     flexShrink: 0,
+  },
+  stepperBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   quantityInput: {
     fontSize: 16,

@@ -1,13 +1,25 @@
 import { useCallback, useState } from 'react';
-import { View, Text, SafeAreaView } from 'react-native';
-import { Link, useFocusEffect, useRouter } from 'expo-router';
+import { View, Text } from 'react-native';
+import { Link, Redirect, useFocusEffect, useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import LottieView from 'lottie-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '@clerk/clerk-expo';
 import { SwipeButton } from '../components/SwipeButton';
 
 export default function MainScreen() {
+  const { isSignedIn, isLoaded } = useAuth();
   const router = useRouter();
   const [swipeKey, setSwipeKey] = useState(0);
+
+  if (!isLoaded) {
+    return null;
+  }
+
+  // If user is already signed in, send them to the dashboard
+  if (isSignedIn) {
+    return <Redirect href="/dashboard" />;
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -41,7 +53,7 @@ export default function MainScreen() {
         </View>
 
         <View className="w-full items-center gap-6 pb-2">
-          <Link href="/(auth)/sign-in" asChild>
+          <Link href="/sign-in" asChild>
             <Text className="text-gray-500 font-medium text-base">
               I already have an account, <Text className="text-black font-bold">Sign In</Text>
             </Text>

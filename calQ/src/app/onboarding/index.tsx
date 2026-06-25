@@ -160,7 +160,7 @@ export default function OnboardingScreen() {
       if (!user) {
         // User not signed in. Data is preserved in AsyncStorage.
         // Redirect them to sign in/up to create an account!
-        router.replace('/(auth)/sign-up');
+        router.replace('/sign-up');
         return;
       }
 

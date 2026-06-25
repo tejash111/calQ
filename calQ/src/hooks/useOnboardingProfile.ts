@@ -9,6 +9,7 @@ export interface OnboardingProfile {
   fat_g: number;
   goal: string;
   weight: string;
+  desired_weight?: string;
   height: string;
   activity_level: string;
 }
@@ -20,34 +21,34 @@ export function useOnboardingProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+      const token = await getToken();
+      if (!token) {
+        setError('No auth token available');
+        return;
+      }
+
+      const data = await getOnboardingProfile(token);
+      setProfile(data as OnboardingProfile);
+    } catch (e: any) {
+      // 404 means no profile yet — not a real error
+      if (e?.message?.includes('not found') || e?.message?.includes('404')) {
+        setProfile(null);
+      } else {
+        setError(e?.message ?? 'Unknown error');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!isLoaded || !user) return;
-
-    const fetchProfile = async () => {
-      try {
-        setLoading(true);
-        const token = await getToken();
-        if (!token) {
-          setError('No auth token available');
-          return;
-        }
-
-        const data = await getOnboardingProfile(token);
-        setProfile(data as OnboardingProfile);
-      } catch (e: any) {
-        // 404 means no profile yet — not a real error
-        if (e?.message?.includes('not found')) {
-          setProfile(null);
-        } else {
-          setError(e?.message ?? 'Unknown error');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchProfile();
   }, [user, isLoaded]);
 
-  return { profile, loading, error };
+  return { profile, loading, error, refetch: fetchProfile };
 }

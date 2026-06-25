@@ -76,7 +76,7 @@ export default function SignUpScreen() {
         </TouchableOpacity>
 
         <View className="mt-8 items-center">
-          <TouchableOpacity onPress={() => router.replace('/(auth)/sign-in')}>
+          <TouchableOpacity onPress={() => router.replace('/sign-in')}>
             <Text className="text-gray-500 font-medium text-base">
               Already have an account? <Text className="text-black font-bold">Sign In</Text>
             </Text>
