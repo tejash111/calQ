@@ -56,14 +56,10 @@ export function ScrollPicker({ values, selectedValue, onValueChange }: ScrollPic
   };
 
   const handleScrollEndDrag = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    // If it is decelerating, let handleMomentumScrollEnd handle the snap and update
     if (!(e.nativeEvent as any).decelerating) {
       const offsetY = e.nativeEvent.contentOffset.y;
       const index = Math.round(offsetY / ITEM_HEIGHT);
       const clamped = Math.max(0, Math.min(index, values.length - 1));
-      
-      // Force snapping animation programmatically
-      scrollRef.current?.scrollTo({ y: clamped * ITEM_HEIGHT, animated: true });
       
       if (values[clamped] !== selectedValue) {
         onValueChange(values[clamped]);
@@ -76,20 +72,18 @@ export function ScrollPicker({ values, selectedValue, onValueChange }: ScrollPic
     const index = Math.round(offsetY / ITEM_HEIGHT);
     const clamped = Math.max(0, Math.min(index, values.length - 1));
     
-    // Force snapping animation programmatically just in case
-    scrollRef.current?.scrollTo({ y: clamped * ITEM_HEIGHT, animated: true });
-    
     if (values[clamped] !== selectedValue) {
       onValueChange(values[clamped]);
     }
   };
 
   const paddingItems = Math.floor(VISIBLE_ITEMS / 2);
+  const paddedValues = [...Array(paddingItems).fill(''), ...values, ...Array(paddingItems).fill('')];
 
   return (
     <View style={styles.container}>
       {/* Selection highlight */}
-      <View style={styles.selectionHighlight} />
+      <View style={[styles.selectionHighlight]} pointerEvents="none" />
 
       <ScrollView
         ref={scrollRef}
@@ -101,12 +95,12 @@ export function ScrollPicker({ values, selectedValue, onValueChange }: ScrollPic
         onMomentumScrollEnd={handleMomentumScrollEnd}
         onScrollEndDrag={handleScrollEndDrag}
         scrollEventThrottle={16}
-        contentContainerStyle={{ paddingVertical: paddingItems * ITEM_HEIGHT }}
       >
-        {values.map((val, index) => {
-          const isSelected = index === localIndex;
+        {paddedValues.map((val, index) => {
+          const actualIndex = index - paddingItems;
+          const isSelected = actualIndex === localIndex;
           return (
-            <View key={val} style={styles.item}>
+            <View key={`${val}-${index}`} style={styles.item}>
               <Text style={[styles.itemText, isSelected && styles.selectedText]}>
                 {val}
               </Text>

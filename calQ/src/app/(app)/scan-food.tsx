@@ -10,6 +10,7 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 import { X, Zap, ZapOff, Camera, ImageIcon } from 'lucide-react-native';
 import { imageStore } from '../../lib/imageStore';
 
@@ -70,13 +71,19 @@ export default function ScanFoodScreen() {
   if (!permission?.granted) {
     return (
       <View style={styles.permissionContainer}>
-        <StatusBar barStyle="light-content" />
+        <StatusBar barStyle="dark-content" />
+        <Image 
+          source={require('../../../assets/dash/camera.svg')} 
+          style={{ width: 80, height: 80, marginBottom: 24, opacity: 0.8 }} 
+          contentFit="contain" 
+          tintColor="#000"
+        />
         <Text style={styles.permissionText}>Camera permission is required to scan food.</Text>
         <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
           <Text style={styles.permissionButtonText}>Grant Permission</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.permissionButton, { marginTop: 12, backgroundColor: '#374151' }]} onPress={() => router.back()}>
-          <Text style={styles.permissionButtonText}>Go Back</Text>
+        <TouchableOpacity style={styles.goBackContainer} onPress={() => router.back()}>
+          <Text style={styles.goBackText}>Go Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -118,13 +125,11 @@ export default function ScanFoodScreen() {
         <View style={styles.overlayBottom} />
       </View>
 
-      {/* Top bar — Close + Title */}
+      {/* Top bar — Close */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
           <X size={24} color="#fff" strokeWidth={2} />
         </TouchableOpacity>
-        <Text style={styles.title}>🍏 calQ</Text>
-        <View style={{ width: 40 }} />
       </View>
 
       {/* Mode tabs */}
@@ -204,8 +209,8 @@ const styles = StyleSheet.create({
   // Corner brackets
   bracket: {
     position: 'absolute',
-    width: BRACKET_SIZE,
-    height: BRACKET_SIZE,
+    width: 40,
+    height: 40,
     borderColor: '#fff',
   },
   bracketTL: {
@@ -305,7 +310,7 @@ const styles = StyleSheet.create({
   captureBtn: {
     width: 76,
     height: 76,
-    borderRadius: 38,
+    borderRadius: 20,
     borderWidth: 4,
     borderColor: '#fff',
     justifyContent: 'center',
@@ -314,35 +319,44 @@ const styles = StyleSheet.create({
   captureBtnInner: {
     width: 62,
     height: 62,
-    borderRadius: 31,
+    borderRadius: 14,
     backgroundColor: '#fff',
   },
   // Permission screen
   permissionContainer: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#F3F4F6', // Subtle gray
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
   },
   permissionText: {
-    color: '#fff',
+    color: '#374151',
     fontSize: 18,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 32,
     fontWeight: '600',
   },
   permissionButton: {
-    backgroundColor: '#A3E635',
+    backgroundColor: '#A3E635', // Brand color
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 16,
     width: '100%',
     alignItems: 'center',
+    marginBottom: 16,
   },
   permissionButtonText: {
     color: '#000',
     fontSize: 16,
     fontWeight: '700',
+  },
+  goBackContainer: {
+    padding: 10,
+  },
+  goBackText: {
+    color: '#6B7280',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

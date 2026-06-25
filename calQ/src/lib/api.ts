@@ -125,8 +125,9 @@ export async function logFood(token: string | null, foodData: any) {
   });
 }
 
-export async function getTodayFoodLogs(token: string | null) {
-  return apiClient("/api/food/log/today", token);
+export async function getTodayFoodLogs(token: string | null, date?: Date) {
+  const query = date ? `?date=${date.toISOString()}` : '';
+  return apiClient(`/api/food/log/today${query}`, token);
 }
 
 export async function scanFood(
@@ -139,3 +140,53 @@ export async function scanFood(
     body: JSON.stringify({ imageBase64, hint }),
   });
 }
+
+export async function getWeeklyFoodLogs(token: string | null) {
+  return apiClient("/api/food/log/week", token);
+}
+
+// ─── AI Chat ─────────────────────────────────────────────────────────────────
+
+export interface AIFoodItem {
+  name: string;
+  quantity: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber?: number;
+  sugar?: number;
+}
+
+export interface AIFoodAnalysisResponse {
+  type: "food_analysis";
+  items: AIFoodItem[];
+  totals: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    fiber: number;
+    sugar: number;
+  };
+  summary: string;
+}
+
+export interface AIChatResponse {
+  type: "chat";
+  message: string;
+}
+
+export type AIResponse = AIFoodAnalysisResponse | AIChatResponse;
+
+export async function sendAIChat(
+  token: string | null,
+  message: string,
+  sessionId: string
+): Promise<AIResponse> {
+  return apiClient("/api/ai/chat", token, {
+    method: "POST",
+    body: JSON.stringify({ message, sessionId }),
+  });
+}
+

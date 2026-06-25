@@ -1,8 +1,8 @@
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { ChatGroq } from "@langchain/groq";
 
-const model = new ChatGoogleGenerativeAI({
-  model: "gemini-2.5-flash",
-  apiKey: process.env.GOOGLE_API_KEY,
+const model = new ChatGroq({
+  model: "openai/gpt-oss-120b",
+  apiKey: process.env.GROQ_API_KEY,
 });
 
 export interface NutritionPlan {
@@ -66,7 +66,7 @@ Return ONLY a valid JSON object with NO markdown formatting, no code blocks, no 
 }
 `;
 
-  const response = await model.invoke(prompt);
+  const response = await model.invoke(prompt, { response_format: { type: "json_object" } });
 
   // Extract text content from LangChain response
   const text =
@@ -81,13 +81,18 @@ Return ONLY a valid JSON object with NO markdown formatting, no code blocks, no 
             .join("")
         : String(response.content);
 
-  // Strip any markdown code blocks if present
-  const cleaned = text
-    .trim()
-    .replace(/```json\n?/g, "")
-    .replace(/```\n?/g, "")
-    .trim();
+  // Strip <think> tags used by reasoning models
+  const cleanText = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
 
-  const parsed = JSON.parse(cleaned) as NutritionPlan;
+  // Extract JSON block using braces to ignore conversational fluff
+  const startIndex = cleanText.indexOf('{');
+  const endIndex = cleanText.lastIndexOf('}');
+
+  if (startIndex === -1 || endIndex === -1) {
+    throw new Error("Model response did not contain a valid JSON object");
+  }
+
+  const jsonStr = cleanText.substring(startIndex, endIndex + 1);
+  const parsed = JSON.parse(jsonStr) as NutritionPlan;
   return parsed;
 }

@@ -3,9 +3,16 @@ import type { Request, Response } from 'express';
 import { requireAuthentication as requireAuth } from '../middleware/auth.js';
 import OAuth from 'oauth-1.0a';
 import crypto from 'crypto';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatGroq } from '@langchain/groq';
 import { HumanMessage } from '@langchain/core/messages';
 import { logger } from '../lib/logger.js';
+import { v2 as cloudinary } from 'cloudinary';
+
+cloudinary.config({
+  cloud_name: 'dr1gpbjgg',
+  api_key: '867565821327189',
+  api_secret: 'hmJXL0LVR7vR5aqxsq9R6ILDiY0',
+});
 
 const router = Router();
 
@@ -88,10 +95,10 @@ router.get('/search', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-// Gemini vision model for food scanning
-const visionModel = new ChatGoogleGenerativeAI({
-  model: 'gemini-2.5-flash',
-  apiKey: process.env.GOOGLE_API_KEY,
+// Qwen vision model for food scanning
+const visionModel = new ChatGroq({
+  model: 'qwen/qwen3.6-27b',
+  apiKey: process.env.GROQ_API_KEY,
 });
 
 // POST /api/food/scan — Analyze a food image with Gemini
@@ -144,7 +151,7 @@ Be as accurate as possible with the nutritional estimates. If you cannot determi
       ],
     });
 
-    const response = await visionModel.invoke([message]);
+    const response = await visionModel.invoke([message], { response_format: { type: "json_object" } });
 
     // Extract text content from LangChain response
     const text =
@@ -159,17 +166,35 @@ Be as accurate as possible with the nutritional estimates. If you cannot determi
               .join('')
           : String(response.content);
 
-    // Strip any markdown code blocks if present
-    const cleaned = text
-      .trim()
-      .replace(/```json\n?/g, '')
-      .replace(/```\n?/g, '')
-      .trim();
+    // Strip <think> tags used by reasoning models
+    const cleanText = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
 
-    console.log('Gemini scan result:', cleaned);
+    // Extract JSON block using braces to ignore conversational fluff
+    const startIndex = cleanText.indexOf('{');
+    const endIndex = cleanText.lastIndexOf('}');
 
-    const parsed = JSON.parse(cleaned);
-    res.json({ result: parsed });
+    if (startIndex === -1 || endIndex === -1) {
+      console.error("RAW MODEL RESPONSE:", text);
+      throw new Error("Model response did not contain a valid JSON object");
+    }
+
+    const jsonStr = cleanText.substring(startIndex, endIndex + 1);
+    console.log('Model scan result:', jsonStr);
+
+    const parsed = JSON.parse(jsonStr);
+
+    // Upload image to Cloudinary
+    let imageUrl: string | undefined;
+    try {
+      const uploadResult = await cloudinary.uploader.upload(`data:image/jpeg;base64,${imageBase64}`, {
+        folder: 'calq_scans',
+      });
+      imageUrl = uploadResult.secure_url;
+    } catch (uploadError) {
+      console.error('Cloudinary upload error:', uploadError);
+    }
+
+    res.json({ result: parsed, imageUrl });
   } catch (error) {
     console.error('Food scan error:', error);
     res.status(500).json({ error: 'Failed to analyze food image' });
@@ -225,13 +250,13 @@ router.post('/log', requireAuth, async (req: any, res: Response) => {
 router.get('/log/today', requireAuth, async (req: any, res: Response) => {
   try {
     const userId = req.auth().userId;
+    const dateQuery = req.query.date as string;
 
-    // Get start and end of today in local time...
-    // To be safe with timezones, we'll just query the last 24h or use JS Date startOfDay
-    const startOfDay = new Date();
+    // Get start and end of the requested date (or today if none provided)
+    const startOfDay = dateQuery ? new Date(dateQuery) : new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    const endOfDay = new Date();
+    const endOfDay = new Date(startOfDay);
     endOfDay.setHours(23, 59, 59, 999);
 
     const logs = await prisma.foodLog.findMany({
@@ -255,6 +280,68 @@ router.get('/log/today', requireAuth, async (req: any, res: Response) => {
   }
 });
 
+// GET /api/food/log/week — Fetch current week's food logs for analytics
+router.get('/log/week', requireAuth, async (req: any, res: Response) => {
+  try {
+    const userId = req.auth().userId;
+
+    // Calculate start of current week (Sunday) and end (Saturday)
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay()); // Go to Sunday
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6); // Saturday
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    const logs = await prisma.foodLog.findMany({
+      where: {
+        userId,
+        consumedAt: {
+          gte: startOfWeek,
+          lte: endOfWeek,
+        },
+      },
+      orderBy: {
+        consumedAt: 'asc',
+      },
+    });
+
+    // Group by day-of-week (0=Sun, 1=Mon, ..., 6=Sat)
+    const dailyData = Array.from({ length: 7 }, (_, i) => ({
+      day: i,
+      consumed: 0,
+      burned: 0, // placeholder — no exercise logging yet
+      logCount: 0,
+    }));
+
+    for (const log of logs) {
+      const dayIndex = new Date(log.consumedAt).getDay();
+      if (dailyData[dayIndex]) {
+        dailyData[dayIndex].consumed += log.calories || 0;
+        dailyData[dayIndex].logCount += 1;
+      }
+    }
+
+    const totalConsumed = dailyData.reduce((s, d) => s + d.consumed, 0);
+    const totalBurned = dailyData.reduce((s, d) => s + d.burned, 0);
+
+    logger.info(`Weekly food logs fetched: userId=${userId}, totalLogs=${logs.length}`);
+    res.json({
+      dailyData,
+      totalConsumed,
+      totalBurned,
+      netEnergy: totalConsumed - totalBurned,
+      weekStart: startOfWeek.toISOString(),
+      weekEnd: endOfWeek.toISOString(),
+    });
+  } catch (error: any) {
+    logger.error(`Error fetching weekly logs: ${error.message}`);
+    res.status(500).json({ error: 'Failed to fetch weekly food logs' });
+  }
+});
+
 // GET /api/food/:id — Fetch full food detail with images using food.get.v5
 // NOTE: This route MUST be last since /:id is a catch-all param
 router.get('/:id', requireAuth, async (req: Request, res: Response) => {
@@ -267,7 +354,7 @@ router.get('/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const data = await fatSecretRequest({
       method: 'food.get.v5',
-      food_id: foodId,
+      food_id: foodId as string,
       include_food_images: 'true',
       include_food_attributes: 'true',
     });

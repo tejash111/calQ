@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, SafeAreaView } from 'react-native';
 import { Link, useFocusEffect, useRouter } from 'expo-router';
 import LottieView from 'lottie-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SwipeButton } from '../components/SwipeButton';
 
 export default function MainScreen() {
@@ -14,7 +15,8 @@ export default function MainScreen() {
     }, []),
   );
 
-  const handleGetStarted = () => {
+  const handleGetStarted = async () => {
+    await AsyncStorage.removeItem('calq_onboarding_data');
     router.push('/onboarding');
   };
 

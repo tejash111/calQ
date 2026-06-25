@@ -9,6 +9,7 @@ import {
   StatusBar,
   Alert,
   TextInput,
+  Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@clerk/clerk-expo';
@@ -16,6 +17,8 @@ import { ArrowLeft, Minus, Plus, Check } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { BlurView } from 'expo-blur';
 import { logFood, getFoodDetail } from '../../lib/api';
+
+const MEAL_OPTIONS = ['Breakfast', 'Lunch', 'Snack', 'Dinner'];
 
 export default function FoodDetailScreen() {
   const router = useRouter();
@@ -41,6 +44,8 @@ export default function FoodDetailScreen() {
   const [isLogging, setIsLogging] = useState(false);
   const [detailLoading, setDetailLoading] = useState(true);
   const [foodDetail, setFoodDetail] = useState<any>(null);
+  const [selectedMeal, setSelectedMeal] = useState<string>('Lunch');
+  const [showMealModal, setShowMealModal] = useState(false);
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -85,7 +90,7 @@ export default function FoodDetailScreen() {
         carbs: adjustedCarbs,
         fat: adjustedFat,
         serving: `${quantity} × ${params.serving}`,
-        mealType: 'Lunch', // Defaulted or you could re-add meal selector if desired
+        mealType: selectedMeal,
       });
       router.dismissAll();
       router.replace('/dashboard');
@@ -112,22 +117,6 @@ export default function FoodDetailScreen() {
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <ArrowLeft size={24} color="#111" strokeWidth={2.5} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.logBtnTopRight, isLogging && { opacity: 0.6 }]}
-          onPress={handleLogFood}
-          disabled={isLogging}
-          activeOpacity={0.7}
-        >
-          {isLogging ? (
-            <ActivityIndicator color="#000" size="small" />
-          ) : (
-            <>
-              <Check size={18} color="#000" strokeWidth={3} />
-              <Text style={styles.logBtnText}>Log Food</Text>
-            </>
-          )}
         </TouchableOpacity>
       </View>
 
@@ -241,6 +230,54 @@ export default function FoodDetailScreen() {
         </View>
       </ScrollView>
 
+      {/* Bottom Floating Menu Bar */}
+      <View style={styles.bottomBarWrapper} pointerEvents="box-none">
+        <BlurView intensity={70} tint="light" style={styles.bottomBar}>
+          {/* Left: Meal Selector */}
+          <TouchableOpacity
+            style={styles.mealDropdownBtn}
+            onPress={() => setShowMealModal(true)}
+          >
+            <Text style={styles.mealDropdownText}>{selectedMeal}</Text>
+          </TouchableOpacity>
+
+          {/* Right: Log Food Button */}
+          <TouchableOpacity
+            style={[styles.bottomLogBtn, isLogging && { opacity: 0.6 }]}
+            onPress={handleLogFood}
+            disabled={isLogging}
+            activeOpacity={0.7}
+          >
+            {isLogging ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.bottomLogBtnText}>Log Food</Text>
+            )}
+          </TouchableOpacity>
+        </BlurView>
+      </View>
+
+      {/* Meal Picker Modal */}
+      <Modal visible={showMealModal} transparent={true} animationType="fade">
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowMealModal(false)}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Meal</Text>
+            {MEAL_OPTIONS.map((meal) => (
+              <TouchableOpacity
+                key={meal}
+                style={[styles.mealOptionBtn, selectedMeal === meal && styles.mealOptionBtnActive]}
+                onPress={() => {
+                  setSelectedMeal(meal);
+                  setShowMealModal(false);
+                }}
+              >
+                <Text style={[styles.mealOptionText, selectedMeal === meal && styles.mealOptionTextActive]}>{meal}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
     </View>
   );
 }
@@ -293,7 +330,7 @@ const styles = StyleSheet.create({
   titleSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 24,
   },
   foodName: {
@@ -406,9 +443,103 @@ const styles = StyleSheet.create({
     minWidth: 28,
     textAlign: 'center',
   },
-  logBtnText: {
+  bottomBarWrapper: {
+    position: 'absolute',
+    bottom: 32,
+    left: 24,
+    right: 24,
+  },
+  bottomBar: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+    borderRadius: 30,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.9)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+  },
+  mealDropdownBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  mealDropdownText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#000',
+    color: '#111',
+  },
+  quantityStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 100,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    flexShrink: 0,
+  },
+  stepperBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bottomLogBtn: {
+    backgroundColor: '#1C1C1E',
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bottomLogBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    width: '80%',
+    padding: 24,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 20,
+  },
+  mealOptionBtn: {
+    width: '100%',
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  mealOptionBtnActive: {
+    backgroundColor: '#F9FAFB',
+  },
+  mealOptionText: {
+    fontSize: 16,
+    color: '#4B5563',
+    fontWeight: '600',
+  },
+  mealOptionTextActive: {
+    color: '#A3E635',
+    fontWeight: '700',
   },
 });
