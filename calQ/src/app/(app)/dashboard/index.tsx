@@ -12,6 +12,8 @@ import {
   TouchableWithoutFeedback,
   TouchableOpacity,
   Animated,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -19,8 +21,9 @@ import { Image } from 'expo-image';
 import { LogOut, Plus, Flame, Home, BarChart2, User, Sparkles, Utensils, Camera, Dumbbell, Barcode, X, Bookmark, Search, Scan } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import Svg, { Circle } from 'react-native-svg';
+import { BarChart } from 'react-native-chart-kit';
 import { useOnboardingProfile, type OnboardingProfile } from '../../../hooks/useOnboardingProfile';
-import { getTodayFoodLogs } from '../../../lib/api';
+import { getTodayFoodLogs, getWeeklyFoodLogs } from '../../../lib/api';
 
 const { width } = Dimensions.get('window');
 
@@ -275,6 +278,42 @@ const calStyles = StyleSheet.create({
   dayNumSelected: { color: '#000', fontWeight: 'normal' },
 });
 
+function FoodLogSkeletonLoader() {
+  const anim = React.useRef(new Animated.Value(0.3)).current;
+
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 0.7, duration: 800, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
+  return (
+    <View style={{ gap: 16, marginTop: 12 }}>
+      {[1, 2].map((i) => (
+        <View key={i} style={[styles.mealGroup, { opacity: 0.8 }]}>
+          <View style={[styles.mealGroupHeader, { borderBottomWidth: 0 }]}>
+            <Animated.View style={{ width: 22, height: 22, borderRadius: 6, backgroundColor: '#E5E7EB', opacity: anim }} />
+            <Animated.View style={{ width: 80, height: 16, backgroundColor: '#E5E7EB', borderRadius: 4, marginLeft: 10, opacity: anim }} />
+            <View style={{ flex: 1 }} />
+            <Animated.View style={{ width: 50, height: 16, backgroundColor: '#E5E7EB', borderRadius: 4, opacity: anim }} />
+          </View>
+          <View style={[styles.foodItem, { borderBottomWidth: 0 }]}>
+            <Animated.View style={{ width: 22, height: 22, borderRadius: 6, backgroundColor: '#E5E7EB', opacity: anim }} />
+            <View style={{ flex: 1, marginLeft: 12, gap: 6 }}>
+              <Animated.View style={{ width: 120, height: 14, backgroundColor: '#E5E7EB', borderRadius: 4, opacity: anim }} />
+              <Animated.View style={{ width: 60, height: 10, backgroundColor: '#E5E7EB', borderRadius: 3, opacity: anim }} />
+            </View>
+            <Animated.View style={{ width: 45, height: 14, backgroundColor: '#E5E7EB', borderRadius: 4, opacity: anim }} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 // ─── HOME TAB ─────────────────────────────────────────────────────────────────
 interface HomeTabProps {
   userName: string;
@@ -509,9 +548,7 @@ function HomeTab({ userName, userImageUrl, profile, profileLoading, foodLogs, lo
       <Text style={styles.sectionTitleFoodLog}>{getFoodLogTitle()}</Text>
       
       {logsLoading ? (
-        <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-          <ActivityIndicator size="small" color="#2b2543" />
-        </View>
+        <FoodLogSkeletonLoader />
       ) : (
         MEAL_CATEGORIES.map((meal) => {
           const foods = foodLogs.filter((f) => f.mealType === meal);
@@ -551,12 +588,284 @@ function HomeTab({ userName, userImageUrl, profile, profileLoading, foodLogs, lo
 }
 
 // ─── PROGRESS TAB ─────────────────────────────────────────────────────────────
-function ProgressTab() {
+function ProgressTab({ profile }: { profile: OnboardingProfile | null }) {
+  const { getToken } = useAuth();
+  const router = useRouter();
+  const [weeklyData, setWeeklyData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      let isActive = true;
+      const fetchWeekly = async () => {
+        try {
+          const token = await getToken();
+          const [weeklyRes, todayRes] = await Promise.all([
+            getWeeklyFoodLogs(token),
+            getTodayFoodLogs(token)
+          ]);
+          
+          if (isActive && weeklyRes.dailyData) {
+            const data = [...weeklyRes.dailyData];
+            
+            // Inject today's actual macros to bypass production backend caching
+            if (todayRes && todayRes.logs) {
+              const currentDayIndex = new Date().getDay();
+              let todayProtein = 0, todayCarbs = 0, todayFat = 0;
+              todayRes.logs.forEach((log: any) => {
+                todayProtein += log.protein || 0;
+                todayCarbs += log.carbs || 0;
+                todayFat += log.fat || 0;
+              });
+              if (data[currentDayIndex]) {
+                data[currentDayIndex].protein = todayProtein;
+                data[currentDayIndex].carbs = todayCarbs;
+                data[currentDayIndex].fat = todayFat;
+              }
+            }
+            setWeeklyData(data);
+          }
+        } catch (e) {
+          console.log('Error fetching weekly logs:', e);
+        } finally {
+          if (isActive) setLoading(false);
+        }
+      };
+      fetchWeekly();
+      return () => { isActive = false; };
+    }, [])
+  );
+
+  const caloriesData = weeklyData.length ? weeklyData.map(d => Math.round(d.consumed || 0)) : [0,0,0,0,0,0,0];
+  const proteinData = weeklyData.length ? weeklyData.map(d => Math.round(d.protein || 0)) : [0,0,0,0,0,0,0];
+  const carbsData = weeklyData.length ? weeklyData.map(d => Math.round(d.carbs || 0)) : [0,0,0,0,0,0,0];
+  const fatData = weeklyData.length ? weeklyData.map(d => Math.round(d.fat || 0)) : [0,0,0,0,0,0,0];
+
+  const hasCalories = caloriesData.some(v => v > 0);
+  const hasProtein = proteinData.some(v => v > 0);
+  const hasCarbs = carbsData.some(v => v > 0);
+  const hasFat = fatData.some(v => v > 0);
+
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text style={{ fontSize: 24, fontWeight: '800', color: '#000' }}>Progress</Text>
-      <Text style={{ color: '#6B7280', marginTop: 8 }}>Coming soon...</Text>
-    </View>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 60, paddingBottom: 110 }}>
+      <Text style={{ fontSize: 28, fontWeight: '800', color: '#000', marginBottom: 24, letterSpacing: -0.5 }}>Progress</Text>
+      
+      <View style={{ flexDirection: 'row', gap: 12 }}>
+        {/* Streak Card */}
+        <View style={{ flex: 1, backgroundColor: '#F0F0F0', borderRadius: 24, padding: 16 }}>
+          <Image source={require('../../../../assets/onboarding/burnfat.svg')} style={{ width: 28, height: 28, marginBottom: 12 }} contentFit="contain" />
+          <Text style={{ fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 16 }}>Day Streak</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => {
+              // Ensure we don't crash if weeklyData is empty
+              const isActive = weeklyData[i] && weeklyData[i].logCount > 0;
+              return (
+                <View key={i} style={{ alignItems: 'center', gap: 6 }}>
+                  <View style={{ 
+                    width: 20, 
+                    height: 20, 
+                    borderRadius: 10, 
+                    backgroundColor: isActive ? '#A3E635' : '#E5E7EB', 
+                    justifyContent: 'center', 
+                    alignItems: 'center' 
+                  }}>
+                    {isActive && <Text style={{ fontSize: 11, fontWeight: '800', color: '#000' }}>✓</Text>}
+                  </View>
+                  <Text style={{ fontSize: 12, color: '#6B7280', fontWeight: '600' }}>{day}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Weight Card */}
+        <TouchableOpacity 
+          style={{ flex: 1, backgroundColor: '#F0F0F0', borderRadius: 24, padding: 16, justifyContent: 'space-between' }}
+          activeOpacity={0.7}
+          onPress={() => router.push('/(app)/update-weight')}
+        >
+          <Text style={{ fontSize: 16, color: '#111', fontWeight: '700' }}>My Weight</Text>
+          <View>
+            <Text style={{ fontSize: 32, fontWeight: '800', color: '#111' }}>
+              {profile?.weight || '--'}
+            </Text>
+            <Text style={{ fontSize: 15, color: '#6B7280', fontWeight: '600' }}>kg</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      {/* Analytics Charts */}
+      {loading ? (
+        <View style={{ marginTop: 40, alignItems: 'center' }}>
+          <ActivityIndicator color="#000" />
+        </View>
+      ) : (
+        <>
+          {/* Calories Chart */}
+          <View style={{ marginTop: 24, backgroundColor: '#F0F0F0', borderRadius: 24, padding: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <Image source={require('../../../../assets/onboarding/burnfat.svg')} style={{ width: 24, height: 24, marginRight: 8 }} contentFit="contain" />
+              <Text style={{ fontSize: 18, fontWeight: '700', color: '#111' }}>Calories Consumed</Text>
+            </View>
+            <BarChart
+              data={{
+                labels: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+                datasets: [{ data: caloriesData }]
+              }}
+              width={width - 40}
+              height={220}
+              yAxisLabel=""
+              yAxisSuffix=""
+              flatColor={true}
+              chartConfig={{
+                backgroundColor: '#F0F0F0',
+                backgroundGradientFrom: '#F0F0F0',
+                backgroundGradientTo: '#F0F0F0',
+                decimalPlaces: 0,
+                color: () => `#A3E635`,
+                labelColor: () => `#6B7280`,
+                barPercentage: 0.3,
+                barRadius: 4,
+                fillShadowGradient: '#A3E635',
+                fillShadowGradientOpacity: 1,
+                formatTopBarValue: (val) => val === 0 ? '' : val,
+                propsForBackgroundLines: {
+                  stroke: "transparent"
+                }
+              }}
+              withInnerLines={false}
+              withHorizontalLabels={false}
+              showBarTops={false}
+              showValuesOnTopOfBars={true}
+              fromZero={true}
+              style={{ borderRadius: 16, paddingRight: 0, paddingLeft: -30 }}
+            />
+          </View>
+
+          {/* Macros Charts */}
+          <Text style={{ fontSize: 20, fontWeight: '700', color: '#111', marginTop: 32, marginBottom: 16 }}>Macro Breakdown</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 16 }}>
+            
+            {/* Protein */}
+            <View style={{ width: width * 0.75, backgroundColor: '#F0F0F0', borderRadius: 24, padding: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                <Image source={require('../../../../assets/onboarding/chicken.svg')} style={{ width: 24, height: 24, marginRight: 8 }} contentFit="contain" />
+                <Text style={{ fontSize: 16, fontWeight: '700', color: '#111' }}>Protein (g)</Text>
+              </View>
+              <BarChart
+                data={{
+                  labels: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+                  datasets: [{ data: proteinData }]
+                }}
+                width={width * 0.75 - 10}
+                height={180}
+                yAxisLabel=""
+                yAxisSuffix=""
+                flatColor={true}
+                chartConfig={{
+                  backgroundColor: '#F0F0F0',
+                  backgroundGradientFrom: '#F0F0F0',
+                  backgroundGradientTo: '#F0F0F0',
+                  decimalPlaces: 0,
+                  color: () => `#EF4444`,
+                  labelColor: () => `#6B7280`,
+                  barPercentage: 0.3,
+                  barRadius: 4,
+                  fillShadowGradient: '#EF4444',
+                  fillShadowGradientOpacity: 1,
+                  formatTopBarValue: (val) => val === 0 ? '' : val,
+                  propsForBackgroundLines: { stroke: "transparent" }
+                }}
+                withInnerLines={false}
+                withHorizontalLabels={false}
+                showBarTops={false}
+                showValuesOnTopOfBars={true}
+                fromZero={true}
+                style={{ borderRadius: 16, paddingRight: 0, paddingLeft: -30 }}
+              />
+            </View>
+
+            {/* Carbs */}
+            <View style={{ width: width * 0.75, backgroundColor: '#F0F0F0', borderRadius: 24, padding: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                <Image source={require('../../../../assets/onboarding/bread.svg')} style={{ width: 24, height: 24, marginRight: 8 }} contentFit="contain" />
+                <Text style={{ fontSize: 16, fontWeight: '700', color: '#111' }}>Carbs (g)</Text>
+              </View>
+              <BarChart
+                data={{
+                  labels: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+                  datasets: [{ data: carbsData }]
+                }}
+                width={width * 0.75 - 10}
+                height={180}
+                yAxisLabel=""
+                yAxisSuffix=""
+                flatColor={true}
+                chartConfig={{
+                  backgroundColor: '#F0F0F0',
+                  backgroundGradientFrom: '#F0F0F0',
+                  backgroundGradientTo: '#F0F0F0',
+                  decimalPlaces: 0,
+                  color: () => `#F59E0B`,
+                  labelColor: () => `#6B7280`,
+                  barPercentage: 0.3,
+                  barRadius: 4,
+                  fillShadowGradient: '#F59E0B',
+                  fillShadowGradientOpacity: 1,
+                  formatTopBarValue: (val) => val === 0 ? '' : val,
+                  propsForBackgroundLines: { stroke: "transparent" }
+                }}
+                withInnerLines={false}
+                withHorizontalLabels={false}
+                showBarTops={false}
+                showValuesOnTopOfBars={true}
+                fromZero={true}
+                style={{ borderRadius: 16, paddingRight: 0, paddingLeft: -30 }}
+              />
+            </View>
+
+            {/* Fat */}
+            <View style={{ width: width * 0.75, backgroundColor: '#F0F0F0', borderRadius: 24, padding: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                <Image source={require('../../../../assets/onboarding/fats.svg')} style={{ width: 24, height: 24, marginRight: 8 }} contentFit="contain" />
+                <Text style={{ fontSize: 16, fontWeight: '700', color: '#111' }}>Fats (g)</Text>
+              </View>
+              <BarChart
+                data={{
+                  labels: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+                  datasets: [{ data: fatData }]
+                }}
+                width={width * 0.75 - 10}
+                height={180}
+                yAxisLabel=""
+                yAxisSuffix=""
+                flatColor={true}
+                chartConfig={{
+                  backgroundColor: '#F0F0F0',
+                  backgroundGradientFrom: '#F0F0F0',
+                  backgroundGradientTo: '#F0F0F0',
+                  decimalPlaces: 0,
+                  color: () => `#3B82F6`,
+                  labelColor: () => `#6B7280`,
+                  barPercentage: 0.3,
+                  barRadius: 4,
+                  fillShadowGradient: '#3B82F6',
+                  fillShadowGradientOpacity: 1,
+                  formatTopBarValue: (val) => val === 0 ? '' : val,
+                  propsForBackgroundLines: { stroke: "transparent" }
+                }}
+                withInnerLines={false}
+                withHorizontalLabels={false}
+                showBarTops={false}
+                showValuesOnTopOfBars={true}
+                fromZero={true}
+                style={{ borderRadius: 16, paddingRight: 0, paddingLeft: -30 }}
+              />
+            </View>
+          </ScrollView>
+        </>
+      )}
+    </ScrollView>
   );
 }
 
@@ -567,8 +876,8 @@ import ProfileTab from '../../../components/ProfileTab';
 // Imported from dedicated component
 import AIChat from '../../../components/AIChat';
 
-function AITab() {
-  return <AIChat />;
+function AITab({ messages, setMessages }: { messages: any[]; setMessages: React.Dispatch<React.SetStateAction<any[]>> }) {
+  return <AIChat messages={messages} setMessages={setMessages} />;
 }
 
 // ─── QUICK ACTION MODAL ──────────────────────────────────────────────────────
@@ -721,8 +1030,27 @@ export default function DashboardScreen() {
   const router = useRouter();
 
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
+  const [aiMessages, setAiMessages] = useState<any[]>([]);
   const [foodLogs, setFoodLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  React.useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSubscription = Keyboard.addListener(showEvent, () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -753,32 +1081,60 @@ export default function DashboardScreen() {
     }
   }, [profile, profileLoading, router]);
 
+  const tabIndex: Record<TabKey, number> = {
+    home: 0,
+    progress: 1,
+    profile: 2,
+    ai: 3,
+  };
+
+  const scrollX = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    Animated.spring(scrollX, {
+      toValue: -width * tabIndex[activeTab],
+      useNativeDriver: true,
+      friction: 9,
+      tension: 65,
+    }).start();
+  }, [activeTab]);
+
   const firstName = user?.firstName ?? user?.username ?? 'there';
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F8F9FA' }}>
-      <View style={{ flex: 1 }}>
-        {activeTab === 'home' && (
-          <HomeTab
-            userName={firstName}
-            userImageUrl={user?.imageUrl}
-            profile={profile}
-            profileLoading={profileLoading}
-            foodLogs={foodLogs}
-            logsLoading={logsLoading}
-            selectedDate={selectedDate}
-            onSelectDate={setSelectedDate}
-          />
-        )}
-        {activeTab === 'progress' && <ProgressTab />}
-        {activeTab === 'profile' && <ProfileTab />}
-        {activeTab === 'ai' && <AITab />}
+      <View style={{ flex: 1, overflow: 'hidden' }}>
+        <Animated.View style={{ flex: 1, width: width * 4, flexDirection: 'row', transform: [{ translateX: scrollX }] }}>
+          <View style={{ width, flex: 1 }}>
+            <HomeTab
+              userName={firstName}
+              userImageUrl={user?.imageUrl}
+              profile={profile}
+              profileLoading={profileLoading}
+              foodLogs={foodLogs}
+              logsLoading={logsLoading}
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+            />
+          </View>
+          <View style={{ width, flex: 1 }}>
+            <ProgressTab profile={profile} />
+          </View>
+          <View style={{ width, flex: 1 }}>
+            <ProfileTab />
+          </View>
+          <View style={{ width, flex: 1 }}>
+            <AITab messages={aiMessages} setMessages={setAiMessages} />
+          </View>
+        </Animated.View>
       </View>
-      <FloatingTabBar 
-        activeTab={activeTab} 
-        onTabChange={setActiveTab} 
-        onPlusPress={() => setIsActionModalVisible(true)}
-      />
+      {!isKeyboardVisible && (
+        <FloatingTabBar 
+          activeTab={activeTab} 
+          onTabChange={setActiveTab} 
+          onPlusPress={() => setIsActionModalVisible(true)}
+        />
+      )}
       <ActionModal 
         visible={isActionModalVisible} 
         onClose={() => setIsActionModalVisible(false)} 

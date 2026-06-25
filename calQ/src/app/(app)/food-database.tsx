@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,18 +8,22 @@ import {
   ActivityIndicator,
   StyleSheet,
   Dimensions,
-  KeyboardAvoidingView,
-  Platform,
   StatusBar,
+  Animated,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@clerk/clerk-expo';
-import { ArrowLeft, Search, Plus } from 'lucide-react-native';
-import { searchFood, logFood } from '../../lib/api';
+import { ArrowLeft, Search, Plus, ChefHat } from 'lucide-react-native';
+import { searchFood, logFood, getCustomMeals } from '../../lib/api';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../components/ui/dropdown-menu';
 
 const { width } = Dimensions.get('window');
 
-// Lodash debounce alternative
 function useDebounce(callback: Function, delay: number) {
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -44,6 +48,10 @@ interface FoodResult {
 export default function FoodDatabaseScreen() {
   const router = useRouter();
   const { getToken } = useAuth();
+  const params = useLocalSearchParams<{ selectionMode?: string }>();
+  const isSelectionMode = params.selectionMode === 'true';
+  
+  const [activeTab, setActiveTab] = useState<'search' | 'mymeals'>('search');
   
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FoodResult[]>([]);
@@ -51,6 +59,28 @@ export default function FoodDatabaseScreen() {
   const [error, setError] = useState<string | null>(null);
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
   const [loggingFoodId, setLoggingFoodId] = useState<string | null>(null);
+
+  const [customMeals, setCustomMeals] = useState<any[]>([]);
+  const [mealsLoading, setMealsLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'mymeals') {
+      fetchCustomMeals();
+    }
+  }, [activeTab]);
+
+  const fetchCustomMeals = async () => {
+    setMealsLoading(true);
+    try {
+      const token = await getToken();
+      const data = await getCustomMeals(token);
+      setCustomMeals(data.meals || []);
+    } catch (err) {
+      console.error('Error fetching custom meals', err);
+    } finally {
+      setMealsLoading(false);
+    }
+  };
 
   const fetchResults = async (searchQuery: string) => {
     if (searchQuery.length < 3) {
@@ -154,13 +184,22 @@ export default function FoodDatabaseScreen() {
         protein: String(macros.protein),
         carbs: String(macros.carbs),
         fat: String(macros.fat),
+        selectionMode: isSelectionMode ? 'true' : 'false',
       },
+    });
+  };
+
+  const handleCustomMealPress = (meal: any) => {
+    router.push({
+      pathname: '/(app)/custom-meal-detail',
+      params: {
+        mealStr: JSON.stringify(meal)
+      }
     });
   };
 
   const renderItem = ({ item }: { item: FoodResult }) => {
     const { serving, calories } = parseMacros(item.description);
-    const isDropdownOpen = activeDropdownId === item.id;
     const isLoggingThis = loggingFoodId === item.id;
 
     return (
@@ -182,30 +221,50 @@ export default function FoodDatabaseScreen() {
               )}
             </View>
           </View>
-          <TouchableOpacity 
-            style={styles.addBtn}
-            onPress={() => setActiveDropdownId(isDropdownOpen ? null : item.id)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Plus size={18} color="#111" strokeWidth={2.5} />
-          </TouchableOpacity>
+          {!isSelectionMode && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <TouchableOpacity 
+                  style={styles.addBtn}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Plus size={18} color="#111" strokeWidth={2.5} />
+                </TouchableOpacity>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="center" overlayClassName="bg-black/20" style={{ width: 190, backgroundColor: '#FFFFFF', borderRadius: 24, borderWidth: 1, borderColor: '#E5E7EB', padding: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 }}>
+                {['Breakfast', 'Lunch', 'Dinner', 'Snacks'].map((meal) => (
+                  <DropdownMenuItem key={meal} onPress={() => handleQuickLog(item, meal)} disabled={isLoggingThis} style={{ paddingHorizontal: 12, paddingVertical: 12, marginVertical: 2, borderRadius: 16 }}>
+                    <Text style={{ color: '#111', fontSize: 16, fontWeight: '500' }}>{meal}</Text>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </TouchableOpacity>
+      </View>
+    );
+  };
 
-        {isDropdownOpen && (
-          <View style={styles.dropdownContainer}>
-            {['Breakfast', 'Lunch', 'Dinner', 'Snacks'].map((meal) => (
-              <TouchableOpacity
-                key={meal}
-                style={styles.dropdownPill}
-                onPress={() => handleQuickLog(item, meal)}
-                disabled={isLoggingThis}
-              >
-                <Text style={styles.dropdownPillText}>{meal}</Text>
-              </TouchableOpacity>
-            ))}
-            {isLoggingThis && <ActivityIndicator size="small" color="#A3E635" style={{ marginLeft: 8 }} />}
+  const renderCustomMeal = ({ item }: { item: any }) => {
+    return (
+      <View style={styles.foodItemContainer}>
+        <TouchableOpacity
+          style={styles.foodItem}
+          onPress={() => handleCustomMealPress(item)}
+          activeOpacity={0.6}
+        >
+          <View style={[styles.addBtn, { marginRight: 12, backgroundColor: '#A3E635' }]}>
+            <ChefHat size={18} color="#000" strokeWidth={2} />
           </View>
-        )}
+          <View style={styles.foodItemContent}>
+            <Text style={styles.foodItemName} numberOfLines={1}>{item.name}</Text>
+            <View style={styles.foodItemMeta}>
+              <Text style={styles.foodItemCalories}>{item.calories} kcal</Text>
+              <Text style={styles.foodItemDot}>•</Text>
+              <Text style={styles.foodItemServing}>{item.protein}g Protein</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -216,58 +275,109 @@ export default function FoodDatabaseScreen() {
 
       <View style={styles.inner}>
         {/* Header */}
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-        >
-          <ArrowLeft size={24} color="#000" />
-        </TouchableOpacity>
-
-        <Text style={styles.pageTitle}>Search Food</Text>
-
-        {/* Search Bar */}
-        <View style={styles.searchBar}>
-          <Search size={20} color="#9CA3AF" />
-          <TextInput
-            value={query}
-            onChangeText={handleSearchChange}
-            placeholder="Search for a food..."
-            placeholderTextColor="#9CA3AF"
-            style={styles.searchInput}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-          />
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+          >
+            <ArrowLeft size={24} color="#000" />
+          </TouchableOpacity>
         </View>
 
-        {/* Results */}
-        {isLoading && query.length >= 3 && results.length === 0 ? (
-          <View style={styles.centerState}>
-            <ActivityIndicator size="large" color="#A3E635" />
-          </View>
-        ) : error ? (
-          <View style={styles.centerState}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : query.length >= 3 && results.length === 0 ? (
-          <View style={styles.centerState}>
-            <Text style={styles.emptyText}>No foods found</Text>
-          </View>
-        ) : query.length < 3 ? (
-          <View style={styles.centerState}>
-            <Text style={styles.hintEmoji}>🔍</Text>
-            <Text style={styles.hintText}>Type at least 3 characters to search</Text>
+        {!isSelectionMode ? (
+          <View style={styles.tabContainer}>
+            <TouchableOpacity 
+              style={[styles.tabBtn, activeTab === 'search' && styles.tabBtnActive]} 
+              onPress={() => setActiveTab('search')}
+            >
+              <Text style={[styles.tabText, activeTab === 'search' && styles.tabTextActive]}>Search</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.tabBtn, activeTab === 'mymeals' && styles.tabBtnActive]} 
+              onPress={() => setActiveTab('mymeals')}
+            >
+              <Text style={[styles.tabText, activeTab === 'mymeals' && styles.tabTextActive]}>My Meals</Text>
+            </TouchableOpacity>
           </View>
         ) : (
-          <FlatList
-            data={results}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 100 }}
-            keyboardShouldPersistTaps="handled"
-          />
+          <Text style={styles.pageTitle}>Add to Meal</Text>
+        )}
+
+        {activeTab === 'search' || isSelectionMode ? (
+          <>
+            {/* Search Bar */}
+            <View style={styles.searchBar}>
+              <Search size={20} color="#9CA3AF" />
+              <TextInput
+                value={query}
+                onChangeText={handleSearchChange}
+                placeholder="Search for a food..."
+                placeholderTextColor="#9CA3AF"
+                style={styles.searchInput}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="search"
+              />
+            </View>
+
+            {/* Results */}
+            {isLoading && query.length >= 3 && results.length === 0 ? (
+              <View style={styles.centerState}>
+                <ActivityIndicator size="large" color="#A3E635" />
+              </View>
+            ) : error ? (
+              <View style={styles.centerState}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : query.length >= 3 && results.length === 0 ? (
+              <View style={styles.centerState}>
+                <Text style={styles.emptyText}>No foods found</Text>
+              </View>
+            ) : query.length < 3 ? (
+              <View style={styles.centerState}>
+                <Text style={styles.hintEmoji}>🔍</Text>
+                <Text style={styles.hintText}>Type at least 3 characters to search</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={results}
+                keyExtractor={(item) => item.id}
+                renderItem={renderItem}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 100 }}
+                keyboardShouldPersistTaps="handled"
+              />
+            )}
+          </>
+        ) : (
+          <>
+            <TouchableOpacity 
+              style={styles.createMealBtn}
+              onPress={() => router.push('/(app)/create-meal')}
+            >
+              <Plus size={20} color="#fff" strokeWidth={2.5} style={{ marginRight: 8 }} />
+              <Text style={styles.createMealBtnText}>Create New Meal</Text>
+            </TouchableOpacity>
+            
+            {mealsLoading ? (
+              <View style={styles.centerState}>
+                <ActivityIndicator size="large" color="#A3E635" />
+              </View>
+            ) : customMeals.length === 0 ? (
+              <View style={styles.centerState}>
+                <Text style={styles.emptyText}>You haven't created any meals yet.</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={customMeals}
+                keyExtractor={(item) => item.id}
+                renderItem={renderCustomMeal}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 100 }}
+              />
+            )}
+          </>
         )}
       </View>
     </View>
@@ -284,7 +394,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 60,
   },
-  // Header
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
   backBtn: {
     width: 40,
     height: 40,
@@ -297,7 +411,36 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 2,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#E5E7EB',
+    borderRadius: 20,
+    padding: 4,
     marginBottom: 20,
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 16,
+  },
+  tabBtnActive: {
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tabText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  tabTextActive: {
+    color: '#111',
+    fontWeight: '700',
   },
   pageTitle: {
     fontSize: 24,
@@ -306,7 +449,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     marginBottom: 20,
   },
-  // Search
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -324,7 +466,6 @@ const styles = StyleSheet.create({
     color: '#111',
     fontWeight: '500',
   },
-  // Food item
   foodItemContainer: {
     marginBottom: 10,
   },
@@ -370,27 +511,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#6B7280',
   },
-  // Dropdown
-  dropdownContainer: {
+  createMealBtn: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#111',
+    paddingVertical: 16,
+    borderRadius: 16,
+    marginBottom: 20,
   },
-  dropdownPill: {
-    backgroundColor: '#E5E7EB',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+  createMealBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
-  dropdownPillText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  // States
   centerState: {
     alignItems: 'center',
     paddingVertical: 60,

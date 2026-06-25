@@ -20,6 +20,14 @@ import { ArrowLeft, Minus, Plus } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import { scanFood, logFood } from '../../lib/api';
 import { imageStore } from '../../lib/imageStore';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '../../components/ui/dropdown-menu';
 
 const { width, height } = Dimensions.get('window');
 
@@ -60,7 +68,6 @@ export default function ScanResultsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMeal, setSelectedMeal] = useState<string>('Lunch');
-  const [showMealModal, setShowMealModal] = useState(false);
   const [isLogging, setIsLogging] = useState(false);
   const [cloudImageUrl, setCloudImageUrl] = useState<string | null>(null);
 
@@ -372,12 +379,20 @@ export default function ScanResultsScreen() {
           <View style={styles.bottomBarWrapper} pointerEvents="box-none">
             <BlurView intensity={70} tint="light" style={styles.bottomBar}>
               {/* Left: Meal Selector */}
-              <TouchableOpacity
-                style={styles.mealDropdownBtn}
-                onPress={() => setShowMealModal(true)}
-              >
-                <Text style={styles.mealDropdownText}>{selectedMeal}</Text>
-              </TouchableOpacity>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <TouchableOpacity style={styles.mealDropdownBtn}>
+                    <Text style={styles.mealDropdownText}>{selectedMeal}</Text>
+                  </TouchableOpacity>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="top" align="center" overlayClassName="bg-black/20" style={{ width: 190, backgroundColor: '#FFFFFF', borderRadius: 24, borderWidth: 1, borderColor: '#E5E7EB', padding: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 }}>
+                  {MEAL_OPTIONS.map((meal) => (
+                    <DropdownMenuItem key={meal} onPress={() => setSelectedMeal(meal)} style={{ paddingHorizontal: 12, paddingVertical: 12, marginVertical: 2, borderRadius: 16, backgroundColor: selectedMeal === meal ? '#F3F4F6' : 'transparent' }}>
+                      <Text style={{ color: '#111', fontSize: 16, fontWeight: '500' }}>{meal}</Text>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               {/* Right: Log Food Button */}
               <TouchableOpacity
@@ -395,26 +410,6 @@ export default function ScanResultsScreen() {
             </BlurView>
           </View>
 
-          {/* Meal Picker Modal */}
-          <Modal visible={showMealModal} transparent={true} animationType="fade">
-            <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowMealModal(false)}>
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Select Meal</Text>
-                {MEAL_OPTIONS.map((meal) => (
-                  <TouchableOpacity
-                    key={meal}
-                    style={[styles.mealOptionBtn, selectedMeal === meal && styles.mealOptionBtnActive]}
-                    onPress={() => {
-                      setSelectedMeal(meal);
-                      setShowMealModal(false);
-                    }}
-                  >
-                    <Text style={[styles.mealOptionText, selectedMeal === meal && styles.mealOptionTextActive]}>{meal}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </TouchableOpacity>
-          </Modal>
         </>
       )}
     </View>

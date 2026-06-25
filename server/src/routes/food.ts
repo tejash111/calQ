@@ -312,6 +312,9 @@ router.get('/log/week', requireAuth, async (req: any, res: Response) => {
     const dailyData = Array.from({ length: 7 }, (_, i) => ({
       day: i,
       consumed: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
       burned: 0, // placeholder — no exercise logging yet
       logCount: 0,
     }));
@@ -320,6 +323,9 @@ router.get('/log/week', requireAuth, async (req: any, res: Response) => {
       const dayIndex = new Date(log.consumedAt).getDay();
       if (dailyData[dayIndex]) {
         dailyData[dayIndex].consumed += log.calories || 0;
+        dailyData[dayIndex].protein += log.protein || 0;
+        dailyData[dayIndex].carbs += log.carbs || 0;
+        dailyData[dayIndex].fat += log.fat || 0;
         dailyData[dayIndex].logCount += 1;
       }
     }
@@ -339,6 +345,52 @@ router.get('/log/week', requireAuth, async (req: any, res: Response) => {
   } catch (error: any) {
     logger.error(`Error fetching weekly logs: ${error.message}`);
     res.status(500).json({ error: 'Failed to fetch weekly food logs' });
+  }
+});
+
+// GET /api/food/custom-meals
+router.get('/custom-meals', requireAuth, async (req: any, res: Response) => {
+  try {
+    const userId = req.auth().userId;
+    const meals = await prisma.customMeal.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ meals });
+  } catch (error: any) {
+    logger.error(`Error fetching custom meals: ${error.message}`);
+    res.status(500).json({ error: 'Failed to fetch custom meals' });
+  }
+});
+
+// POST /api/food/custom-meals
+router.post('/custom-meals', requireAuth, async (req: any, res: Response) => {
+  try {
+    const userId = req.auth().userId;
+    const { name, calories, protein, carbs, fat, fiber, sugar, items } = req.body;
+
+    if (!name || calories === undefined || !items) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const meal = await prisma.customMeal.create({
+      data: {
+        userId,
+        name,
+        calories,
+        protein,
+        carbs,
+        fat,
+        fiber,
+        sugar,
+        items
+      }
+    });
+
+    res.json({ success: true, meal });
+  } catch (error: any) {
+    logger.error(`Error saving custom meal: ${error.message}`);
+    res.status(500).json({ error: 'Failed to save custom meal' });
   }
 });
 

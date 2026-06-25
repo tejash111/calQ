@@ -17,6 +17,8 @@ model User {
 
   onboarding Onboarding?
   foodLogs   FoodLog[]
+  customMeals CustomMeal[]
+  weightLogs WeightLog[]
 
   @@map("users")
 }
@@ -77,4 +79,36 @@ model FoodLog {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("food_logs")
+}
+
+model CustomMeal {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  name        String
+  
+  calories    Int
+  protein     Float?
+  carbs       Float?
+  fat         Float?
+  fiber       Float?
+  sugar       Float?
+
+  items       Json
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("custom_meals")
+}
+
+model WeightLog {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  weight    Float
+  loggedAt  DateTime @default(now()) @map("logged_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("weight_logs")
 }

@@ -130,4 +130,41 @@ router.post("/", requireAuthentication, async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/onboarding/weight — update weight and log history
+router.post("/weight", requireAuthentication, async (req: Request, res: Response) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const { weight } = req.body;
+    if (!weight) {
+      res.status(400).json({ error: "Weight is required" });
+      return;
+    }
+
+    // 1. Create Weight Log
+    const weightLog = await prisma.weightLog.create({
+      data: {
+        userId,
+        weight: parseFloat(weight)
+      }
+    });
+
+    // 2. Update Onboarding
+    const onboarding = await prisma.onboarding.upsert({
+      where: { userId },
+      update: { weight: String(weight) },
+      create: { userId, weight: String(weight) }
+    });
+
+    res.json({ success: true, weightLog, onboarding });
+  } catch (error) {
+    console.error("Error saving weight:", error);
+    res.status(500).json({ error: "Failed to save weight data" });
+  }
+});
+
 export default router;

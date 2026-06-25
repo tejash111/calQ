@@ -21,9 +21,16 @@ import { ArrowUp, Plus, Check, X } from 'lucide-react-native';
 import { sendAIChat, logFood, type AIFoodAnalysisResponse, type AIFoodItem, type AIResponse } from '../lib/api';
 import LottieView from 'lottie-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from './ui/dropdown-menu';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -157,7 +164,7 @@ function CombinedTotalsCard({
   isLogging,
   isLogged,
 }: CombinedTotalsCardProps) {
-  const [showMealPicker, setShowMealPicker] = useState(false);
+  // showMealPicker state removed
 
   return (
     <View style={styles.foodCard}>
@@ -236,26 +243,20 @@ function CombinedTotalsCard({
       ) : (
         <View style={styles.foodCardFooter}>
           {/* Meal Selector */}
-          {showMealPicker ? (
-            <View style={styles.mealPickerRow}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <TouchableOpacity style={styles.mealDropdown}>
+                <Text style={styles.mealDropdownText}>{selectedMeal}</Text>
+              </TouchableOpacity>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="top" align="center" overlayClassName="bg-black/20" style={{ width: 190, backgroundColor: '#FFFFFF', borderRadius: 24, borderWidth: 1, borderColor: '#E5E7EB', padding: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 }}>
               {MEAL_OPTIONS.map((m) => (
-                <TouchableOpacity
-                  key={m}
-                  style={[styles.mealChip, selectedMeal === m && styles.mealChipActive]}
-                  onPress={() => {
-                    onMealChange(m);
-                    setShowMealPicker(false);
-                  }}
-                >
-                  <Text style={[styles.mealChipText, selectedMeal === m && styles.mealChipTextActive]}>{m}</Text>
-                </TouchableOpacity>
+                <DropdownMenuItem key={m} onPress={() => onMealChange(m)} style={{ paddingHorizontal: 12, paddingVertical: 12, marginVertical: 2, borderRadius: 16, backgroundColor: selectedMeal === m ? '#F3F4F6' : 'transparent' }}>
+                  <Text style={{ color: '#111', fontSize: 16, fontWeight: '500' }}>{m}</Text>
+                </DropdownMenuItem>
               ))}
-            </View>
-          ) : (
-            <TouchableOpacity style={styles.mealDropdown} onPress={() => setShowMealPicker(true)}>
-              <Text style={styles.mealDropdownText}>{selectedMeal}</Text>
-            </TouchableOpacity>
-          )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Log Button */}
           <TouchableOpacity
@@ -278,16 +279,42 @@ function CombinedTotalsCard({
 
 // ─── Main AI Chat Component ──────────────────────────────────────────────────
 
-export default function AIChat() {
-  const insets = useSafeAreaInsets();
+export default function AIChat({
+  messages,
+  setMessages,
+}: {
+  messages: ChatMessage[];
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
+}) {
   const { getToken } = useAuth();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loggingStates, setLoggingStates] = useState<Record<string, boolean>>({});
   const [sessionId] = useState(() => uuidv4());
   const flatListRef = useRef<FlatList>(null);
   const [showTopFade, setShowTopFade] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSubscription = Keyboard.addListener(showEvent, () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  const handleNewChat = useCallback(() => {
+    setMessages([]);
+  }, [setMessages]);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
@@ -511,14 +538,14 @@ export default function AIChat() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       <View style={styles.chatArea}>
-        {/* Top Fade */}
-        {showTopFade && (
-          <LinearGradient
-            colors={['#F8F9FA', 'rgba(248, 249, 250, 0)']}
-            style={styles.topFade}
-            pointerEvents="none"
-          />
-        )}
+         {/* Top Fade */}
+         {showTopFade && (
+           <LinearGradient
+             colors={['#F8F9FA', 'rgba(248, 249, 250, 0)']}
+             style={styles.topFade}
+             pointerEvents="none"
+           />
+         )}
 
         <FlatList
           ref={flatListRef}
@@ -533,7 +560,18 @@ export default function AIChat() {
           onScroll={handleScroll}
           scrollEventThrottle={16}
           ListEmptyComponent={renderEmptyState}
-          ListFooterComponent={isLoading ? <SkeletonLoader /> : null}
+          ListFooterComponent={
+            isLoading ? (
+              <SkeletonLoader />
+            ) : messages.length > 0 ? (
+              <View style={styles.newChatBtnContainer}>
+                <TouchableOpacity style={styles.newChatBtn} onPress={handleNewChat} activeOpacity={0.7}>
+                  <Plus size={16} color="#FFFFFF" strokeWidth={2.5} style={{ marginRight: 6 }} />
+                  <Text style={styles.newChatBtnText}>New Chat</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null
+          }
           onContentSizeChange={() => {
             if (messages.length > 0) {
               flatListRef.current?.scrollToEnd({ animated: true });
@@ -543,7 +581,14 @@ export default function AIChat() {
       </View>
 
       {/* Input Bar */}
-      <View style={[styles.inputBarOuter, { paddingBottom: Math.max(insets.bottom, 8) + 90 }]}>
+      <View style={[
+        styles.inputBarOuter,
+        {
+          paddingBottom: isKeyboardVisible
+            ? 8
+            : 130
+        }
+      ]}>
         <View style={styles.inputBar}>
           {/* Plus Button */}
           <TouchableOpacity style={styles.plusButton} activeOpacity={0.6}>
@@ -585,7 +630,7 @@ const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: 'transparent',
   },
   chatArea: {
     flex: 1,
@@ -881,7 +926,7 @@ const styles = StyleSheet.create({
   inputBarOuter: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: 'transparent',
   },
   inputBar: {
     flexDirection: 'row',
@@ -979,6 +1024,30 @@ const styles = StyleSheet.create({
   microValueCombined: {
     fontSize: 14,
     color: '#111',
+    fontWeight: '700',
+  },
+  newChatBtnContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    backgroundColor: 'transparent',
+  },
+  newChatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1C1C1E',
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  newChatBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '700',
   },
   individualCard: {

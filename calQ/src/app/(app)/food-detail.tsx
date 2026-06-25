@@ -13,10 +13,19 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@clerk/clerk-expo';
-import { ArrowLeft, Minus, Plus, Check } from 'lucide-react-native';
+import { ArrowLeft, Minus, Plus } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { BlurView } from 'expo-blur';
 import { logFood, getFoodDetail } from '../../lib/api';
+import { MealDraftState } from '../../lib/MealDraftState';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '../../components/ui/dropdown-menu';
 
 const MEAL_OPTIONS = ['Breakfast', 'Lunch', 'Snack', 'Dinner'];
 
@@ -33,6 +42,8 @@ export default function FoodDetailScreen() {
     fat: string;
   }>();
 
+  const isSelectionMode = params.selectionMode === 'true';
+
   const calories = parseInt(params.calories || '0');
   const protein = parseFloat(params.protein || '0');
   const carbs = parseFloat(params.carbs || '0');
@@ -45,7 +56,6 @@ export default function FoodDetailScreen() {
   const [detailLoading, setDetailLoading] = useState(true);
   const [foodDetail, setFoodDetail] = useState<any>(null);
   const [selectedMeal, setSelectedMeal] = useState<string>('Lunch');
-  const [showMealModal, setShowMealModal] = useState(false);
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -79,6 +89,22 @@ export default function FoodDetailScreen() {
   }
 
   const handleLogFood = async () => {
+    if (isSelectionMode) {
+      MealDraftState.addItem({
+        id: params.foodId,
+        name: params.foodName,
+        calories: adjustedCals,
+        protein: adjustedProtein,
+        carbs: adjustedCarbs,
+        fat: adjustedFat,
+        fiber: fiber,
+        sugar: sugar,
+        serving: `${quantity} × ${params.serving}`,
+      });
+      router.navigate('/(app)/create-meal');
+      return;
+    }
+
     setIsLogging(true);
     try {
       const token = await getToken();
@@ -233,17 +259,27 @@ export default function FoodDetailScreen() {
       {/* Bottom Floating Menu Bar */}
       <View style={styles.bottomBarWrapper} pointerEvents="box-none">
         <BlurView intensity={70} tint="light" style={styles.bottomBar}>
-          {/* Left: Meal Selector */}
-          <TouchableOpacity
-            style={styles.mealDropdownBtn}
-            onPress={() => setShowMealModal(true)}
-          >
-            <Text style={styles.mealDropdownText}>{selectedMeal}</Text>
-          </TouchableOpacity>
+          {/* Left: Meal Selector (Hidden in Selection Mode) */}
+          {!isSelectionMode && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <TouchableOpacity style={styles.mealDropdownBtn}>
+                  <Text style={styles.mealDropdownText}>{selectedMeal}</Text>
+                </TouchableOpacity>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="center" overlayClassName="bg-black/20" style={{ width: 190, backgroundColor: '#FFFFFF', borderRadius: 24, borderWidth: 1, borderColor: '#E5E7EB', padding: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 }}>
+              {MEAL_OPTIONS.map((meal) => (
+                <DropdownMenuItem key={meal} onPress={() => setSelectedMeal(meal)} style={{ paddingHorizontal: 12, paddingVertical: 12, marginVertical: 2, borderRadius: 16, backgroundColor: selectedMeal === meal ? '#F3F4F6' : 'transparent' }}>
+                  <Text style={{ color: '#111', fontSize: 16, fontWeight: '500' }}>{meal}</Text>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
           {/* Right: Log Food Button */}
           <TouchableOpacity
-            style={[styles.bottomLogBtn, isLogging && { opacity: 0.6 }]}
+            style={[styles.bottomLogBtn, isLogging && { opacity: 0.6 }, isSelectionMode && { flex: 1, paddingVertical: 16 }]}
             onPress={handleLogFood}
             disabled={isLogging}
             activeOpacity={0.7}
@@ -251,32 +287,11 @@ export default function FoodDetailScreen() {
             {isLogging ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text style={styles.bottomLogBtnText}>Log Food</Text>
+              <Text style={styles.bottomLogBtnText}>{isSelectionMode ? 'Add to Meal' : 'Log Food'}</Text>
             )}
           </TouchableOpacity>
         </BlurView>
       </View>
-
-      {/* Meal Picker Modal */}
-      <Modal visible={showMealModal} transparent={true} animationType="fade">
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowMealModal(false)}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Meal</Text>
-            {MEAL_OPTIONS.map((meal) => (
-              <TouchableOpacity
-                key={meal}
-                style={[styles.mealOptionBtn, selectedMeal === meal && styles.mealOptionBtnActive]}
-                onPress={() => {
-                  setSelectedMeal(meal);
-                  setShowMealModal(false);
-                }}
-              >
-                <Text style={[styles.mealOptionText, selectedMeal === meal && styles.mealOptionTextActive]}>{meal}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
 
     </View>
   );

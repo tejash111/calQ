@@ -145,6 +145,24 @@ export async function getWeeklyFoodLogs(token: string | null) {
   return apiClient("/api/food/log/week", token);
 }
 
+export async function getCustomMeals(token: string | null) {
+  return apiClient("/api/food/custom-meals", token);
+}
+
+export async function saveCustomMeal(token: string | null, mealData: any) {
+  return apiClient("/api/food/custom-meals", token, {
+    method: "POST",
+    body: JSON.stringify(mealData),
+  });
+}
+
+export async function updateWeight(token: string | null, weight: number) {
+  return apiClient("/api/onboarding/weight", token, {
+    method: "POST",
+    body: JSON.stringify({ weight }),
+  });
+}
+
 // ─── AI Chat ─────────────────────────────────────────────────────────────────
 
 export interface AIFoodItem {

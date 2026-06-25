@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, ActivityIndicator, Alert, Animated } from 'react-native';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 import { LogOut, ChevronRight, Edit2, User as UserIcon } from 'lucide-react-native';
 import { useOnboardingProfile } from '../hooks/useOnboardingProfile';
 import { saveOnboarding } from '../lib/api';
@@ -33,6 +34,7 @@ function ProfileSkeletonLoader() {
 export default function ProfileTab() {
   const { user } = useUser();
   const { signOut, getToken } = useAuth();
+  const router = useRouter();
   const { profile, loading: profileLoading, refetch } = useOnboardingProfile();
 
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -111,7 +113,7 @@ export default function ProfileTab() {
             <DetailRow 
               label="Current Weight" 
               value={profile?.weight ? `${profile.weight} kg` : 'Not set'} 
-              onPress={() => openEdit('weight', 'Current Weight', profile?.weight || '')} 
+              onPress={() => router.push('/(app)/update-weight')} 
             />
             <DetailRow 
               label="Goal Weight" 
@@ -139,7 +141,7 @@ export default function ProfileTab() {
 
       {/* Logout Button */}
       <Pressable style={styles.logoutCard} onPress={() => signOut()}>
-        <LogOut size={20} color="#EF4444" />
+        <LogOut size={20} color="#4B5563" />
         <Text style={styles.logoutText}>Log Out</Text>
       </Pressable>
 
@@ -292,7 +294,7 @@ const styles = StyleSheet.create({
     marginLeft: 20,
   },
   logoutCard: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: '#F0F0F0',
     borderRadius: 16,
     padding: 12,
     flexDirection: 'row',
@@ -303,7 +305,7 @@ const styles = StyleSheet.create({
   logoutText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#EF4444',
+    color: '#4B5563',
   },
   modalOverlay: {
     flex: 1,
